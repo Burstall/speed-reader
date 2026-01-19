@@ -89,8 +89,8 @@ interface AuthState {
   addCustomService: (service: Omit<PremiumService, 'id'>) => void;
   removeCustomService: (serviceId: string) => void;
 
-  // Legacy support
-  substackCookie: string;
+  // Legacy support (functions instead of getters for persistence compatibility)
+  getSubstackCookie: () => string;
   setSubstackCookie: (cookie: string) => void;
   clearSubstackCookie: () => void;
 }
@@ -191,7 +191,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       // Legacy support for existing SubstackSettings component
-      get substackCookie() {
+      getSubstackCookie: () => {
         return get().credentials['substack']?.cookie || '';
       },
 
@@ -210,6 +210,20 @@ export const useAuthStore = create<AuthState>()(
         credentials: state.credentials,
         customServices: state.customServices,
       }),
+      // Debug hydration
+      onRehydrateStorage: () => {
+        console.log('[AuthStore] Hydration starting...');
+        return (state, error) => {
+          if (error) {
+            console.error('[AuthStore] Hydration error:', error);
+          } else {
+            console.log('[AuthStore] Hydration complete:', {
+              credentialCount: state ? Object.keys(state.credentials).length : 0,
+              credentials: state ? Object.keys(state.credentials) : [],
+            });
+          }
+        };
+      },
     }
   )
 );
