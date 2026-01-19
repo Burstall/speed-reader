@@ -16,7 +16,9 @@ import { ThemeToggle } from '@/components/reader/ThemeToggle';
 import { useLaunchMode } from '@/hooks/useLaunchMode';
 import { ContentTabs } from '@/components/sidebar/ContentTabs';
 import { ReadingHistory } from '@/components/sidebar/ReadingHistory';
-import { SubstackSettings } from '@/components/sidebar/SubstackSettings';
+import { PremiumAccess } from '@/components/sidebar/PremiumAccess';
+import { ReadingList } from '@/components/sidebar/ReadingList';
+import { Bookmarklet } from '@/components/sidebar/Bookmarklet';
 
 export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -104,14 +106,24 @@ export default function Home() {
           <div className="flex-1 overflow-y-auto min-h-0">
             <ContentTabs />
 
+            {/* Saved reading list (offline) */}
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
+              <ReadingList />
+            </div>
+
             {/* Reading history */}
             <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
               <ReadingHistory />
             </div>
 
-            {/* Substack settings */}
+            {/* Premium service access */}
             <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
-              <SubstackSettings />
+              <PremiumAccess />
+            </div>
+
+            {/* Bookmarklet for saving articles */}
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
+              <Bookmarklet />
             </div>
           </div>
 

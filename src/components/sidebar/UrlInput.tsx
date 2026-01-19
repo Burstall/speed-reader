@@ -10,7 +10,7 @@ export function UrlInput() {
   const [error, setError] = useState('');
   const [articleTitle, setArticleTitle] = useState('');
   const { setContent } = useReaderStore();
-  const { substackCookie } = useAuthStore();
+  const { getCredentialForDomain } = useAuthStore();
 
   const isValidUrl = (urlString: string) => {
     try {
@@ -38,17 +38,16 @@ export function UrlInput() {
     setIsLoading(true);
 
     try {
-      // Check if this is a Substack URL
+      // Get stored cookie for this domain if available
       const parsedUrl = new URL(url.trim());
-      const isSubstack = parsedUrl.hostname.includes('substack.com') ||
-                         parsedUrl.hostname.endsWith('.substack.com');
+      const cookie = getCredentialForDomain(parsedUrl.hostname);
 
       const response = await fetch('/api/fetch/article', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url: url.trim(),
-          substackCookie: isSubstack ? substackCookie : undefined,
+          cookie: cookie || undefined,
         }),
       });
 

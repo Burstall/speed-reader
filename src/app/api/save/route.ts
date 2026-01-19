@@ -2,11 +2,15 @@ import { NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
 
 export const runtime = 'nodejs';
-export const maxDuration = 10;
+export const maxDuration = 15;
 
+/**
+ * API endpoint to fetch and return article content for saving.
+ * Used by the bookmarklet and share target.
+ */
 export async function POST(request: Request) {
   try {
-    const { url, cookie, substackCookie } = await request.json();
+    const { url, cookie } = await request.json();
 
     if (!url || typeof url !== 'string') {
       return NextResponse.json(
@@ -29,22 +33,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch the article with timeout
+    // Fetch the article
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeout = setTimeout(() => controller.abort(), 12000);
 
-    // Build headers
     const headers: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.9',
     };
 
-    // Add cookie if provided (supports any premium service)
-    // Fall back to legacy substackCookie parameter for backwards compatibility
-    const sessionCookie = cookie || substackCookie;
-    if (sessionCookie) {
-      headers['Cookie'] = sessionCookie;
+    // Add cookie if provided (for paywalled content)
+    if (cookie) {
+      headers['Cookie'] = cookie;
     }
 
     let response: Response;
@@ -52,7 +53,6 @@ export async function POST(request: Request) {
       response = await fetch(url, {
         signal: controller.signal,
         headers,
-        // Follow redirects
         redirect: 'follow',
       });
     } finally {
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: `Failed to fetch: ${response.status} ${response.statusText}` },
+        { error: `Failed to fetch: ${response.status}` },
         { status: 502 }
       );
     }
@@ -72,35 +72,40 @@ export async function POST(request: Request) {
     // Remove unwanted elements
     $('script, style, nav, footer, header, aside, .comments, .sidebar, .advertisement, .ad, .social-share, .related-posts, .newsletter-signup, [role="complementary"], [role="navigation"]').remove();
 
-    // Try to extract article title
+    // Extract title
     let title = '';
     title = $('h1.post-title').first().text().trim() ||
             $('h1[class*="title"]').first().text().trim() ||
             $('article h1').first().text().trim() ||
+            $('meta[property="og:title"]').attr('content') ||
             $('h1').first().text().trim() ||
             $('title').text().trim();
 
-    // Try to find article content using common selectors
+    // Extract article content based on site patterns
     let articleText = '';
+    const hostname = parsedUrl.hostname;
 
-    // Substack specific
-    if (parsedUrl.hostname.includes('substack.com')) {
+    // Site-specific extraction
+    if (hostname.includes('substack.com')) {
       articleText = $('.body.markup').text() ||
                     $('[class*="post-content"]').text() ||
                     $('article').text();
-    }
-    // Medium specific
-    else if (parsedUrl.hostname.includes('medium.com')) {
+    } else if (hostname.includes('medium.com')) {
       articleText = $('article').text();
-    }
-    // Generic article extraction
-    else {
-      // Try common article containers
+    } else if (hostname.includes('ft.com')) {
+      articleText = $('[class*="article-body"]').text() ||
+                    $('article').text();
+    } else if (hostname.includes('spectator.co.uk') || hostname.includes('spectator.com')) {
+      articleText = $('[class*="article-content"]').text() ||
+                    $('article').text();
+    } else {
+      // Generic extraction
       const selectors = [
         'article',
         '[role="article"]',
         '.post-content',
         '.article-content',
+        '.article-body',
         '.entry-content',
         '.content',
         'main',
@@ -115,7 +120,6 @@ export async function POST(request: Request) {
         }
       }
 
-      // Fallback to body if nothing found
       if (articleText.length < 100) {
         articleText = $('body').text();
       }
@@ -123,39 +127,34 @@ export async function POST(request: Request) {
 
     // Clean up text
     const cleanText = articleText
-      .replace(/\s+/g, ' ')           // Normalize whitespace
-      .replace(/\n+/g, ' ')           // Remove newlines
-      .replace(/\t+/g, ' ')           // Remove tabs
+      .replace(/[\s\u00A0\u2000-\u200B\u202F\u205F\u3000]+/g, ' ')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      // Fix missing spaces after punctuation
+      .replace(/([.!?])(['""\)\]]+)([A-Z])/g, '$1$2 $3')
+      .replace(/([.!?])([A-Z])/g, '$1 $2')
+      .replace(/(['""])([A-Z])/g, '$1 $2')
       .trim();
 
     if (cleanText.length < 50) {
       return NextResponse.json(
-        { error: 'Could not extract readable content from this page' },
+        { error: 'Could not extract readable content' },
         { status: 400 }
       );
     }
 
-    // Tokenize into words
-    const words = cleanText.split(' ').filter(word => word.length > 0);
-
-    // Limit to reasonable size (100k words)
-    const limitedWords = words.slice(0, 100000);
-
     return NextResponse.json({
-      title: title || parsedUrl.hostname,
-      words: limitedWords,
-      metadata: {
-        source: parsedUrl.hostname,
-        wordCount: limitedWords.length,
-        truncated: words.length > 100000,
-      },
+      url,
+      title: title || hostname,
+      content: cleanText,
+      source: hostname.replace(/^www\./, ''),
+      wordCount: cleanText.split(' ').filter(w => w.length > 0).length,
     });
   } catch (error) {
-    console.error('Article fetch error:', error);
+    console.error('Save article error:', error);
 
     if (error instanceof Error && error.name === 'AbortError') {
       return NextResponse.json(
-        { error: 'Request timeout - page took too long to load' },
+        { error: 'Request timeout' },
         { status: 408 }
       );
     }

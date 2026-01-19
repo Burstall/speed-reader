@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration';
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
@@ -43,6 +44,7 @@ export default function RootLayout({
       </head>
       <body className={`${jetbrainsMono.variable} font-mono antialiased min-h-screen bg-gray-100 dark:bg-[#0a0a0a] transition-colors`}>
         <ThemeProvider>
+          <ServiceWorkerRegistration />
           {children}
         </ThemeProvider>
       </body>
