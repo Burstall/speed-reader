@@ -43,8 +43,13 @@ export async function POST(request: Request) {
     // Add cookie if provided (supports any premium service)
     // Fall back to legacy substackCookie parameter for backwards compatibility
     const sessionCookie = cookie || substackCookie;
+    const hasCookie = !!sessionCookie;
     if (sessionCookie) {
       headers['Cookie'] = sessionCookie;
+      // Log cookie presence (not value) for debugging
+      console.log(`[Article Fetch] Using cookie for ${parsedUrl.hostname}, cookie length: ${sessionCookie.length}`);
+    } else {
+      console.log(`[Article Fetch] No cookie provided for ${parsedUrl.hostname}`);
     }
 
     let response: Response;

@@ -9,14 +9,9 @@ import { useReaderStore } from '@/store/readerStore';
  * Supports launch mode speed ramping.
  */
 export function useRsvpEngine() {
-  const { isPlaying, wpm, advance, words, currentIndex, launch } = useReaderStore();
+  const { isPlaying, words } = useReaderStore();
   const lastTickRef = useRef<number>(0);
   const frameRef = useRef<number | null>(null);
-
-  // Get effective WPM (launch mode or normal)
-  const effectiveWpm = launch.isLaunching && launch.rampStartTime > 0
-    ? launch.currentWpm
-    : wpm;
 
   useEffect(() => {
     if (!isPlaying) {
@@ -24,6 +19,7 @@ export function useRsvpEngine() {
         cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
       }
+      lastTickRef.current = 0;
       return;
     }
 
@@ -32,13 +28,16 @@ export function useRsvpEngine() {
         lastTickRef.current = timestamp;
       }
 
-      // Get current effective WPM (may change during launch ramp)
-      const currentEffectiveWpm = useReaderStore.getState().launch.isLaunching &&
-                                   useReaderStore.getState().launch.rampStartTime > 0
-        ? useReaderStore.getState().launch.currentWpm
-        : useReaderStore.getState().wpm;
+      // Get current state fresh each tick (important for launch mode ramp)
+      const state = useReaderStore.getState();
+      const { launch, wpm, currentIndex, advance } = state;
 
-      const baseMs = 60000 / currentEffectiveWpm;
+      // Get effective WPM (launch mode or normal)
+      const effectiveWpm = launch.isLaunching && launch.rampStartTime > 0
+        ? launch.currentWpm
+        : wpm;
+
+      const baseMs = 60000 / effectiveWpm;
 
       // Get delay for current word (with punctuation adjustment)
       const currentWord = words[currentIndex] || '';
@@ -51,7 +50,10 @@ export function useRsvpEngine() {
         lastTickRef.current = timestamp;
       }
 
-      frameRef.current = requestAnimationFrame(tick);
+      // Continue animation if still playing
+      if (useReaderStore.getState().isPlaying) {
+        frameRef.current = requestAnimationFrame(tick);
+      }
     };
 
     frameRef.current = requestAnimationFrame(tick);
@@ -63,7 +65,7 @@ export function useRsvpEngine() {
       }
       lastTickRef.current = 0;
     };
-  }, [isPlaying, wpm, effectiveWpm, advance, words, currentIndex]);
+  }, [isPlaying, words]);
 }
 
 /**

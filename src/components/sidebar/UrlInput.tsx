@@ -9,8 +9,9 @@ export function UrlInput() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [articleTitle, setArticleTitle] = useState('');
+  const [usingPremium, setUsingPremium] = useState(false);
   const { setContent } = useReaderStore();
-  const { getCredentialForDomain } = useAuthStore();
+  const { getCredentialForDomain, getServiceForDomain } = useAuthStore();
 
   const isValidUrl = (urlString: string) => {
     try {
@@ -24,6 +25,7 @@ export function UrlInput() {
   const handleFetch = async () => {
     setError('');
     setArticleTitle('');
+    setUsingPremium(false);
 
     if (!url.trim()) {
       setError('Please enter a URL');
@@ -41,6 +43,14 @@ export function UrlInput() {
       // Get stored cookie for this domain if available
       const parsedUrl = new URL(url.trim());
       const cookie = getCredentialForDomain(parsedUrl.hostname);
+      const service = getServiceForDomain(parsedUrl.hostname);
+
+      if (cookie && service) {
+        setUsingPremium(true);
+        console.log(`[UrlInput] Using ${service.name} credentials, cookie length: ${cookie.length}`);
+      } else if (service) {
+        console.log(`[UrlInput] ${service.name} detected but no credentials stored`);
+      }
 
       const response = await fetch('/api/fetch/article', {
         method: 'POST',
@@ -128,7 +138,16 @@ export function UrlInput() {
       )}
 
       {articleTitle && !error && (
-        <p className="text-sm text-green-500 truncate">{articleTitle}</p>
+        <div>
+          <p className="text-sm text-green-500 truncate">{articleTitle}</p>
+          {usingPremium && (
+            <p className="text-xs text-blue-400">Fetched with premium access</p>
+          )}
+        </div>
+      )}
+
+      {isLoading && usingPremium && (
+        <p className="text-xs text-blue-400">Using premium credentials...</p>
       )}
 
       <p className="text-xs text-gray-600">
