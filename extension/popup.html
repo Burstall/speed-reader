@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      width: 320px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .header h1 {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .domain {
+      padding: 8px 12px;
+      background: #1a1a1a;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    .domain-label {
+      font-size: 10px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .domain-value {
+      font-size: 13px;
+      color: #fff;
+      word-break: break-all;
+    }
+    .service-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #1e3a5f;
+      color: #60a5fa;
+      border-radius: 4px;
+      font-size: 11px;
+      margin-top: 6px;
+    }
+    .not-supported {
+      background: #3f3f46;
+      color: #a1a1aa;
+    }
+    .status {
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+    .status.success {
+      background: #14532d;
+      color: #86efac;
+    }
+    .status.error {
+      background: #7f1d1d;
+      color: #fca5a5;
+    }
+    .status.info {
+      background: #1e3a5f;
+      color: #93c5fd;
+    }
+    .cookie-count {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 12px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-primary {
+      background: #fff;
+      color: #000;
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: #e5e5e5;
+    }
+    .btn-secondary {
+      background: #27272a;
+      color: #fff;
+      margin-top: 8px;
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: #3f3f46;
+    }
+    .settings {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #27272a;
+    }
+    .settings label {
+      display: block;
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 6px;
+    }
+    .settings input {
+      width: 100%;
+      padding: 8px 10px;
+      background: #1a1a1a;
+      border: 1px solid #27272a;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 12px;
+    }
+    .settings input:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+    </svg>
+    <h1>Speed Reader</h1>
+  </div>
+
+  <div class="domain">
+    <div class="domain-label">Current Site</div>
+    <div class="domain-value" id="domain">Loading...</div>
+    <span class="service-badge hidden" id="serviceBadge"></span>
+  </div>
+
+  <div class="status hidden" id="status"></div>
+
+  <div class="cookie-count" id="cookieCount"></div>
+
+  <button class="btn-primary" id="captureBtn" disabled>
+    Capture Cookies
+  </button>
+
+  <button class="btn-secondary hidden" id="openAppBtn">
+    Open Speed Reader
+  </button>
+
+  <div class="settings">
+    <label for="appUrl">Speed Reader URL</label>
+    <input type="url" id="appUrl" placeholder="https://your-app.vercel.app">
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

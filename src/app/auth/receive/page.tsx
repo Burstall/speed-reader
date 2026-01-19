@@ -15,6 +15,7 @@ function ReceiveContent() {
   useEffect(() => {
     const serviceId = searchParams.get('service');
     const cookie = searchParams.get('cookie');
+    const customDomain = searchParams.get('domain');
 
     if (!serviceId || !cookie) {
       setStatus('error');
@@ -24,7 +25,19 @@ function ReceiveContent() {
 
     // Find the service
     const allServices = [...PREMIUM_SERVICES, ...customServices];
-    const service = allServices.find(s => s.id === serviceId);
+    let service = allServices.find(s => s.id === serviceId);
+
+    // Handle custom domains from extension
+    if (!service && serviceId === 'custom' && customDomain) {
+      // For custom domains, use the domain as the service name
+      service = {
+        id: `custom_${customDomain.replace(/\./g, '_')}`,
+        name: customDomain,
+        domain: customDomain,
+        loginUrl: `https://${customDomain}`,
+        cookieName: 'session',
+      };
+    }
 
     if (!service) {
       setStatus('error');
@@ -36,7 +49,7 @@ function ReceiveContent() {
 
     // Save the cookie
     try {
-      setCredential(serviceId, cookie);
+      setCredential(service.id, cookie);
       setStatus('success');
       setMessage(`Connected to ${service.name}!`);
 
