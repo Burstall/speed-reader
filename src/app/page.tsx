@@ -88,8 +88,8 @@ export default function Home() {
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
-        <div className="flex flex-col h-full p-4 overflow-hidden">
-          {/* Header */}
+        <div className="flex flex-col h-full p-4">
+          {/* Header - fixed at top */}
           <div className="flex items-center justify-between mb-6 flex-shrink-0">
             <h1 className="text-lg font-bold">Speed Reader</h1>
             <button
@@ -103,8 +103,9 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Content input tabs */}
-          <div className="flex-1 overflow-y-auto min-h-0">
+          {/* All content scrollable */}
+          <div className="flex-1 overflow-y-auto min-h-0 -mr-2 pr-2">
+            {/* Content input tabs */}
             <ContentTabs />
 
             {/* Saved reading list (offline) */}
@@ -131,34 +132,34 @@ export default function Home() {
             <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
               <Bookmarklet />
             </div>
-          </div>
 
-          {/* Settings section */}
-          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800 flex-shrink-0 space-y-4">
-            <SpeedControl />
-            <FocalColorPicker />
-            <ThemeToggle />
-          </div>
+            {/* Settings section - now inside scroll area */}
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800 space-y-4">
+              <SpeedControl />
+              <FocalColorPicker />
+              <ThemeToggle />
+            </div>
 
-          {/* Clear button */}
-          {hasContent && (
-            <button
-              onClick={reset}
-              className="mt-4 w-full py-2 text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white
-                         border border-gray-300 dark:border-gray-800 rounded-lg hover:border-gray-400 dark:hover:border-gray-600 transition-colors flex-shrink-0"
-            >
-              Clear Content
-            </button>
-          )}
+            {/* Clear button */}
+            {hasContent && (
+              <button
+                onClick={reset}
+                className="mt-4 w-full py-2 text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white
+                           border border-gray-300 dark:border-gray-800 rounded-lg hover:border-gray-400 dark:hover:border-gray-600 transition-colors"
+              >
+                Clear Content
+              </button>
+            )}
 
-          {/* Keyboard shortcuts help */}
-          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
-            <p className="text-xs text-gray-500 dark:text-gray-600 mb-2">Shortcuts</p>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-500">
-              <span>Space</span><span>Play/Pause</span>
-              <span>↑↓</span><span>Speed</span>
-              <span>←→</span><span>Skip</span>
-              <span>R</span><span>Restart</span>
+            {/* Keyboard shortcuts help */}
+            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-800 pb-4">
+              <p className="text-xs text-gray-500 dark:text-gray-600 mb-2">Shortcuts</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-500">
+                <span>Space</span><span>Play/Pause</span>
+                <span>↑↓</span><span>Speed</span>
+                <span>←→</span><span>Skip</span>
+                <span>R</span><span>Restart</span>
+              </div>
             </div>
           </div>
         </div>
