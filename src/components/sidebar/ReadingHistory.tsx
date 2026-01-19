@@ -8,7 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 export function ReadingHistory() {
   const { items, removeItem, clearHistory } = useHistoryStore();
   const { setContent, jumpTo } = useReaderStore();
-  const { substackCookie } = useAuthStore();
+  const { getCredentialForDomain } = useAuthStore();
   const [resumingId, setResumingId] = useState<string | null>(null);
 
   if (items.length === 0) {
@@ -36,17 +36,15 @@ export function ReadingHistory() {
 
       // If we have a URL, refetch the content
       if (item.sourceUrl) {
-        // Check if Substack URL for cookie
         const parsedUrl = new URL(item.sourceUrl);
-        const isSubstack = parsedUrl.hostname.includes('substack.com') ||
-                           parsedUrl.hostname.endsWith('.substack.com');
+        const cookie = getCredentialForDomain(parsedUrl.hostname);
 
         const response = await fetch('/api/fetch/article', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             url: item.sourceUrl,
-            substackCookie: isSubstack ? substackCookie : undefined,
+            cookie: cookie || undefined,
           }),
         });
 
