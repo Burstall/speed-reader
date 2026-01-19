@@ -173,66 +173,103 @@ export function PremiumAccess() {
               </div>
 
               {/* Step 2: Capture cookies */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
                   Step 2: After logging in, capture your session
                 </p>
 
-                {/* Desktop: Bookmarklet */}
-                <div className="hidden sm:block">
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                    Drag this to your bookmarks bar, then click it while on {selectedService.name}:
-                  </p>
-                  <a
-                    href={getCookieBookmarklet(selectedService)}
-                    onClick={(e) => e.preventDefault()}
-                    draggable
-                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-purple-600
-                               text-white text-xs font-medium rounded cursor-grab active:cursor-grabbing"
-                  >
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                    </svg>
-                    Capture {selectedService.name}
-                  </a>
+                {/* Desktop Instructions */}
+                <div className="hidden sm:block space-y-3">
+                  {/* Warning about HttpOnly */}
+                  <div className="p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-xs">
+                    <p className="text-amber-800 dark:text-amber-200 font-medium">
+                      ⚠️ Most sites use HttpOnly cookies
+                    </p>
+                    <p className="text-amber-700 dark:text-amber-300 mt-1">
+                      The bookmarklet below may not capture session cookies. If it doesn&apos;t work, use the manual DevTools method.
+                    </p>
+                  </div>
+
+                  {/* Bookmarklet option */}
+                  <div>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                      <strong>Option A:</strong> Try the bookmarklet (drag to bookmarks bar):
+                    </p>
+                    <a
+                      href={getCookieBookmarklet(selectedService)}
+                      onClick={(e) => e.preventDefault()}
+                      draggable
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-purple-600
+                                 text-white text-xs font-medium rounded cursor-grab active:cursor-grabbing"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                      </svg>
+                      Capture {selectedService.name}
+                    </a>
+                  </div>
+
+                  {/* DevTools method - recommended */}
+                  <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded">
+                    <p className="text-xs text-gray-700 dark:text-gray-300 mb-2">
+                      <strong>Option B (Recommended):</strong> Copy from DevTools
+                    </p>
+                    <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 list-decimal list-inside">
+                      <li>On {selectedService.name}, press <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">F12</kbd> to open DevTools</li>
+                      <li>Go to <strong>Application</strong> tab → <strong>Cookies</strong> → select the site</li>
+                      <li>Find <code className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">{selectedService.cookieName}</code></li>
+                      <li>Double-click the <strong>Value</strong> column and copy it</li>
+                      <li>Paste in the box below</li>
+                    </ol>
+                  </div>
                 </div>
 
-                {/* Mobile: Manual entry */}
-                <div className="sm:hidden">
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                    On mobile, you&apos;ll need to manually copy your session cookie:
+                {/* Mobile Instructions */}
+                <div className="sm:hidden space-y-2">
+                  <div className="p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-xs">
+                    <p className="text-amber-800 dark:text-amber-200 font-medium">
+                      📱 Mobile requires desktop browser
+                    </p>
+                    <p className="text-amber-700 dark:text-amber-300 mt-1">
+                      Session cookies can only be captured from a desktop browser. Connect from your computer, then use the app on mobile.
+                    </p>
+                  </div>
+
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    If you have access to a desktop browser:
                   </p>
                   <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 list-decimal list-inside">
-                    <li>Open {selectedService.name} in a browser</li>
-                    <li>Go to Settings → Site Settings → Cookies</li>
-                    <li>Find and copy the session cookie value</li>
+                    <li>Open this app on your desktop</li>
+                    <li>Connect to {selectedService.name}</li>
+                    <li>Your credentials sync via local storage</li>
                   </ol>
                 </div>
 
-                {/* Manual entry fallback */}
-                <details className="mt-2">
-                  <summary className="text-xs text-gray-500 dark:text-gray-500 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300">
-                    Manual cookie entry
-                  </summary>
-                  <div className="mt-2 space-y-2">
-                    <textarea
-                      value={manualCookie}
-                      onChange={(e) => setManualCookie(e.target.value)}
-                      placeholder="Paste your cookie string here..."
-                      className="w-full h-20 p-2 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700
-                                 rounded resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                    <button
-                      onClick={handleSaveCookie}
-                      disabled={!manualCookie.trim()}
-                      className="w-full py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed
-                                 text-white text-sm rounded transition-colors"
-                    >
-                      Save Cookie
-                    </button>
-                  </div>
-                </details>
+                {/* Manual entry - always visible now */}
+                <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Paste cookie value:
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-500">
+                    Look for <code className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">{selectedService.cookieName}</code> or paste the full cookie string
+                  </p>
+                  <textarea
+                    value={manualCookie}
+                    onChange={(e) => setManualCookie(e.target.value)}
+                    placeholder={`Paste ${selectedService.cookieName} value or full cookie string...`}
+                    className="w-full h-20 p-2 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700
+                               rounded resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                  />
+                  <button
+                    onClick={handleSaveCookie}
+                    disabled={!manualCookie.trim()}
+                    className="w-full py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed
+                               text-white text-sm font-medium rounded transition-colors"
+                  >
+                    Save Cookie
+                  </button>
+                </div>
               </div>
             </div>
           )}

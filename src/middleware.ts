@@ -11,7 +11,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/auth/receive') ||  // Cookie capture from bookmarklet
     pathname === '/share' ||                  // PWA share target
-    pathname === '/api/save'                  // Article save API (for share target)
+    pathname === '/api/save' ||               // Article save API (for share target)
+    pathname === '/sync'                      // Device sync (QR code import)
   ) {
     return NextResponse.next();
   }

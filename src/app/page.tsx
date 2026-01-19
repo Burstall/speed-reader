@@ -19,6 +19,7 @@ import { ReadingHistory } from '@/components/sidebar/ReadingHistory';
 import { PremiumAccess } from '@/components/sidebar/PremiumAccess';
 import { ReadingList } from '@/components/sidebar/ReadingList';
 import { Bookmarklet } from '@/components/sidebar/Bookmarklet';
+import { DeviceSync } from '@/components/sidebar/DeviceSync';
 
 export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -119,6 +120,11 @@ export default function Home() {
             {/* Premium service access */}
             <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
               <PremiumAccess />
+            </div>
+
+            {/* Device sync (QR code for mobile) */}
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
+              <DeviceSync />
             </div>
 
             {/* Bookmarklet for saving articles */}
