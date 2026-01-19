@@ -33,21 +33,38 @@ export async function POST(request: Request) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
 
-    // Build headers
+    // Build headers - mimic a real browser as closely as possible
     const headers: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+      'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+      'Sec-Ch-Ua-Mobile': '?0',
+      'Sec-Ch-Ua-Platform': '"Windows"',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+      'Upgrade-Insecure-Requests': '1',
     };
+
+    // Add referer for the site
+    headers['Referer'] = `https://${parsedUrl.hostname}/`;
+    headers['Origin'] = `https://${parsedUrl.hostname}`;
 
     // Add cookie if provided (supports any premium service)
     // Fall back to legacy substackCookie parameter for backwards compatibility
     const sessionCookie = cookie || substackCookie;
-    const hasCookie = !!sessionCookie;
     if (sessionCookie) {
       headers['Cookie'] = sessionCookie;
-      // Log cookie presence (not value) for debugging
-      console.log(`[Article Fetch] Using cookie for ${parsedUrl.hostname}, cookie length: ${sessionCookie.length}`);
+      // Log cookie details for debugging
+      console.log(`[Article Fetch] Using cookie for ${parsedUrl.hostname}`);
+      console.log(`[Article Fetch] Cookie length: ${sessionCookie.length}`);
+      // Log first 50 chars to see format (safe - just cookie names)
+      console.log(`[Article Fetch] Cookie preview: ${sessionCookie.substring(0, 100)}...`);
     } else {
       console.log(`[Article Fetch] No cookie provided for ${parsedUrl.hostname}`);
     }
@@ -88,11 +105,34 @@ export async function POST(request: Request) {
     // Try to find article content using common selectors
     let articleText = '';
 
+    // Track if content appears paywalled
+    let isPaywalled = false;
+
     // Substack specific
-    if (parsedUrl.hostname.includes('substack.com')) {
+    if (parsedUrl.hostname.includes('substack.com') ||
+        parsedUrl.hostname.endsWith('.substack.com')) {
+      // Check for paywall indicators
+      isPaywalled = $('.paywall').length > 0 ||
+                    $('.paywall-title').length > 0 ||
+                    $('[class*="paywall"]').length > 0 ||
+                    html.includes('This post is for paid subscribers') ||
+                    html.includes('This post is for paying subscribers') ||
+                    html.includes('Subscribe to continue reading') ||
+                    html.includes('Rest of this post is for paid');
+
+      if (isPaywalled) {
+        console.log('[Article Fetch] Substack paywall detected in response - cookie may be invalid/expired');
+      }
+
+      // Try multiple selectors for Substack content
       articleText = $('.body.markup').text() ||
+                    $('[class*="body markup"]').text() ||
                     $('[class*="post-content"]').text() ||
+                    $('.post-content').text() ||
+                    $('article .available-content').text() ||
                     $('article').text();
+
+      console.log(`[Article Fetch] Substack content length: ${articleText.length}, paywalled: ${isPaywalled}`);
     }
     // Medium specific
     else if (parsedUrl.hostname.includes('medium.com')) {
@@ -153,6 +193,8 @@ export async function POST(request: Request) {
         source: parsedUrl.hostname,
         wordCount: limitedWords.length,
         truncated: words.length > 100000,
+        isPaywalled,
+        usedCookie: !!sessionCookie,
       },
     });
   } catch (error) {

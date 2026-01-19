@@ -10,6 +10,7 @@ export function UrlInput() {
   const [error, setError] = useState('');
   const [articleTitle, setArticleTitle] = useState('');
   const [usingPremium, setUsingPremium] = useState(false);
+  const [wasPaywalled, setWasPaywalled] = useState(false);
   const { setContent } = useReaderStore();
   const { getCredentialForDomain, getServiceForDomain } = useAuthStore();
 
@@ -26,6 +27,7 @@ export function UrlInput() {
     setError('');
     setArticleTitle('');
     setUsingPremium(false);
+    setWasPaywalled(false);
 
     if (!url.trim()) {
       setError('Please enter a URL');
@@ -70,6 +72,12 @@ export function UrlInput() {
 
       if (!data.words || data.words.length === 0) {
         throw new Error('No readable content found in article');
+      }
+
+      // Check if content was paywalled
+      if (data.metadata?.isPaywalled) {
+        setWasPaywalled(true);
+        console.log('[UrlInput] Content appears to be paywalled - cookie may be expired');
       }
 
       const title = data.title || new URL(url.trim()).hostname;
@@ -140,8 +148,13 @@ export function UrlInput() {
       {articleTitle && !error && (
         <div>
           <p className="text-sm text-green-500 truncate">{articleTitle}</p>
-          {usingPremium && (
+          {usingPremium && !wasPaywalled && (
             <p className="text-xs text-blue-400">Fetched with premium access</p>
+          )}
+          {wasPaywalled && (
+            <p className="text-xs text-orange-400">
+              Paywall detected - try reconnecting in Premium Access
+            </p>
           )}
         </div>
       )}
