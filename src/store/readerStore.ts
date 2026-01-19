@@ -130,7 +130,7 @@ export const useReaderStore = create<ReaderState>()(
       }),
 
       setWpm: (wpm) => set({
-        wpm: Math.min(1200, Math.max(150, wpm)),
+        wpm: Math.min(900, Math.max(150, wpm)),
       }),
 
       setFocalColor: (focalColor) => set({ focalColor }),

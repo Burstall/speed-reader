@@ -62,6 +62,18 @@ export const PREMIUM_SERVICES: PremiumService[] = [
   },
 ];
 
+// Helper to match domain to a service
+export function findServiceForDomain(domain: string, customServices: PremiumService[] = []): PremiumService | null {
+  const allServices = [...PREMIUM_SERVICES, ...customServices];
+  const normalizedDomain = domain.toLowerCase().replace(/^www\./, '');
+
+  return allServices.find((s) => {
+    const serviceDomain = s.domain.toLowerCase().replace(/^www\./, '');
+    return normalizedDomain === serviceDomain ||
+           normalizedDomain.endsWith('.' + serviceDomain);
+  }) || null;
+}
+
 interface AuthState {
   // Credentials by service ID
   credentials: Record<string, ServiceCredential>;
@@ -73,6 +85,7 @@ interface AuthState {
   setCredential: (serviceId: string, cookie: string) => void;
   clearCredential: (serviceId: string) => void;
   getCredentialForDomain: (domain: string) => string | null;
+  getServiceForDomain: (domain: string) => PremiumService | null;
   addCustomService: (service: Omit<PremiumService, 'id'>) => void;
   removeCustomService: (serviceId: string) => void;
 
@@ -112,15 +125,21 @@ export const useAuthStore = create<AuthState>()(
         const { credentials, customServices } = get();
         const allServices = [...PREMIUM_SERVICES, ...customServices];
 
+        // Normalize domain (remove www. prefix, lowercase)
+        const normalizedDomain = domain.toLowerCase().replace(/^www\./, '');
+
         // Find service matching this domain
-        const service = allServices.find((s) =>
-          domain.includes(s.domain) || s.domain.includes(domain)
-        );
+        // Check if domain ends with service domain (handles subdomains like example.substack.com)
+        const service = allServices.find((s) => {
+          const serviceDomain = s.domain.toLowerCase().replace(/^www\./, '');
+          return normalizedDomain === serviceDomain ||
+                 normalizedDomain.endsWith('.' + serviceDomain);
+        });
 
         if (!service) return null;
 
         const cred = credentials[service.id];
-        if (!cred) return null;
+        if (!cred || !cred.cookie) return null;
 
         // Update last used
         set((state) => ({
@@ -133,7 +152,22 @@ export const useAuthStore = create<AuthState>()(
           },
         }));
 
-        return cred.cookie;
+        // Format cookie properly for HTTP header
+        // If cookie already looks like a full cookie string (contains cookieName=), return as-is
+        // Otherwise, format it as cookieName=value
+        const cookieValue = cred.cookie;
+        if (cookieValue.includes('=')) {
+          // Already a full cookie string (from bookmarklet)
+          return cookieValue;
+        } else {
+          // Just a value (from manual entry), format with cookie name
+          return `${service.cookieName}=${cookieValue}`;
+        }
+      },
+
+      getServiceForDomain: (domain) => {
+        const { customServices } = get();
+        return findServiceForDomain(domain, customServices);
       },
 
       addCustomService: (service) => {

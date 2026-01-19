@@ -19,7 +19,7 @@ export function SpeedControl() {
       <input
         type="range"
         min={150}
-        max={1200}
+        max={900}
         step={25}
         value={wpm}
         onChange={(e) => setWpm(Number(e.target.value))}
@@ -38,7 +38,7 @@ export function SpeedControl() {
                    [&::-moz-range-thumb]:cursor-pointer"
         aria-label={`Reading speed: ${wpm} words per minute`}
         aria-valuemin={150}
-        aria-valuemax={1200}
+        aria-valuemax={900}
         aria-valuenow={wpm}
       />
 
