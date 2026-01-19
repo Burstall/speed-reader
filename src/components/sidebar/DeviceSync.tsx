@@ -1,18 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { useReaderStore } from '@/store/readerStore';
 import { useAuthStore, PREMIUM_SERVICES } from '@/store/authStore';
 import { gatherSyncData, generateSyncUrl } from '@/lib/sync';
 
-// Dynamic import for QR code library (may not be installed)
-let QRCodeSVG: React.ComponentType<{ value: string; size: number; level: string; includeMargin: boolean }> | null = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  QRCodeSVG = require('qrcode.react').QRCodeSVG;
-} catch {
-  // Library not installed, will use API fallback
-}
+// Dynamic import for QR code library
+const QRCodeSVG = dynamic(
+  () => import('qrcode.react').then((mod) => mod.QRCodeSVG),
+  { ssr: false, loading: () => <div className="w-[180px] h-[180px] bg-gray-100 animate-pulse rounded" /> }
+);
 
 export function DeviceSync() {
   const [expanded, setExpanded] = useState(false);
@@ -74,32 +72,21 @@ export function DeviceSync() {
       {expanded && (
         <div className="space-y-4">
           {/* QR Code */}
-          {QRCodeSVG && syncUrl ? (
-            <div className="flex flex-col items-center gap-3 p-4 bg-white rounded-lg">
+          <div className="flex flex-col items-center gap-3 p-4 bg-white rounded-lg">
+            {syncUrl ? (
               <QRCodeSVG
                 value={syncUrl}
                 size={180}
                 level="M"
                 includeMargin={false}
               />
-              <p className="text-xs text-gray-600 text-center">
-                Scan with your phone camera
-              </p>
-            </div>
-          ) : syncUrl ? (
-            <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg text-center">
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                Copy the link below and open it on your mobile device
-              </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500">
-                (Run <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">npm i qrcode.react</code> for QR codes)
-              </p>
-            </div>
-          ) : (
-            <div className="flex justify-center p-4">
-              <div className="w-[180px] h-[180px] bg-gray-100 dark:bg-gray-800 animate-pulse rounded" />
-            </div>
-          )}
+            ) : (
+              <div className="w-[180px] h-[180px] bg-gray-100 animate-pulse rounded" />
+            )}
+            <p className="text-xs text-gray-600 text-center">
+              Scan with your phone camera
+            </p>
+          </div>
 
           {/* What's included */}
           <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs">
