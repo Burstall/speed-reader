@@ -85,8 +85,12 @@ export async function POST(request: Request) {
 
     let articles: FeedArticle[] = [];
 
-    // Substack feed parsing
-    if (parsedUrl.hostname.includes('substack.com')) {
+    // Substack inbox - use API instead of scraping (page is JS-rendered)
+    if (parsedUrl.hostname === 'substack.com' && parsedUrl.pathname.includes('inbox')) {
+      articles = await fetchSubstackInboxAPI(cookie);
+    }
+    // Substack publication archive pages
+    else if (parsedUrl.hostname.includes('substack.com') || parsedUrl.hostname.includes('.substack.')) {
       articles = parseSubstackFeed($, parsedUrl);
     }
     // Financial Times
@@ -126,6 +130,107 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+async function fetchSubstackInboxAPI(cookie?: string): Promise<FeedArticle[]> {
+  const articles: FeedArticle[] = [];
+
+  const headers: Record<string, string> = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json',
+  };
+
+  if (cookie) {
+    headers['Cookie'] = cookie;
+  }
+
+  // Try multiple Substack API endpoints
+  const endpoints = [
+    'https://substack.com/api/v1/reader/posts',
+    'https://substack.com/api/v1/inbox',
+    'https://substack.com/api/v1/reader/inbox',
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      console.log(`Trying Substack endpoint: ${endpoint}`);
+      const response = await fetch(endpoint, { headers });
+
+      if (!response.ok) {
+        console.log(`${endpoint} returned ${response.status}`);
+        continue;
+      }
+
+      const data = await response.json();
+      console.log(`${endpoint} returned keys:`, Object.keys(data));
+
+      // Try to find posts in various response structures
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let posts: any[] = [];
+
+      if (Array.isArray(data)) {
+        posts = data;
+      } else if (data.posts) {
+        posts = data.posts;
+      } else if (data.items) {
+        posts = data.items;
+      } else if (data.inbox) {
+        posts = data.inbox;
+      } else if (data.data) {
+        posts = Array.isArray(data.data) ? data.data : [data.data];
+      }
+
+      if (posts.length === 0) {
+        console.log(`No posts found in ${endpoint} response`);
+        continue;
+      }
+
+      console.log(`Found ${posts.length} posts from ${endpoint}`);
+
+      for (const post of posts) {
+        if (!post) continue;
+
+        // Handle nested post structure (post might be wrapper with .post inside)
+        const actualPost = post.post || post;
+
+        const title = actualPost.title;
+        let url = actualPost.canonical_url;
+
+        // Build URL from slug if no canonical_url
+        if (!url && actualPost.slug) {
+          const subdomain = actualPost.publication?.subdomain ||
+                           post.publication?.subdomain ||
+                           actualPost.publication_id;
+          if (subdomain) {
+            url = `https://${subdomain}.substack.com/p/${actualPost.slug}`;
+          }
+        }
+
+        if (!title || !url) continue;
+
+        articles.push({
+          title: title.slice(0, 200),
+          url,
+          excerpt: (actualPost.subtitle || actualPost.description || actualPost.truncated_body_text || '').slice(0, 300) || undefined,
+          date: actualPost.post_date || actualPost.published_at,
+          author: actualPost.publishedBylines?.[0]?.name ||
+                  post.publication?.name ||
+                  actualPost.publication?.name,
+          isPremium: actualPost.audience === 'only_paid',
+        });
+      }
+
+      if (articles.length > 0) {
+        console.log(`Successfully parsed ${articles.length} articles from ${endpoint}`);
+        return articles;
+      }
+    } catch (error) {
+      console.error(`Error fetching ${endpoint}:`, error);
+    }
+  }
+
+  console.log('All Substack API endpoints failed or returned no articles');
+  return articles;
 }
 
 function parseSubstackFeed($: cheerio.CheerioAPI, baseUrl: URL): FeedArticle[] {
