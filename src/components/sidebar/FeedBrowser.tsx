@@ -88,11 +88,14 @@ export function FeedBrowser() {
       }
 
       // Save to offline storage
+      const parsedArticleUrl = new URL(article.url);
       await saveArticle({
         url: article.url,
         title: data.title || article.title,
         content: data.words.join(' '),
         wordCount: data.words.length,
+        currentIndex: 0,
+        source: parsedArticleUrl.hostname,
       });
 
       setSaved(prev => new Set(prev).add(article.url));
