@@ -205,6 +205,11 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'speed-reader-auth',
+      // Explicitly persist credentials and customServices
+      partialize: (state) => ({
+        credentials: state.credentials,
+        customServices: state.customServices,
+      }),
     }
   )
 );
