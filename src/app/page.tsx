@@ -20,6 +20,7 @@ import { PremiumAccess } from '@/components/sidebar/PremiumAccess';
 import { ReadingList } from '@/components/sidebar/ReadingList';
 import { Bookmarklet } from '@/components/sidebar/Bookmarklet';
 import { DeviceSync } from '@/components/sidebar/DeviceSync';
+import { FeedBrowser } from '@/components/sidebar/FeedBrowser';
 
 export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -107,6 +108,11 @@ export default function Home() {
           <div className="flex-1 overflow-y-auto min-h-0 -mr-2 pr-2">
             {/* Content input tabs */}
             <ContentTabs />
+
+            {/* Browse premium feeds */}
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
+              <FeedBrowser />
+            </div>
 
             {/* Saved reading list (offline) */}
             <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
