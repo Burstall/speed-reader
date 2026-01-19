@@ -111,19 +111,6 @@ export async function POST(request: Request) {
     // Substack specific
     if (parsedUrl.hostname.includes('substack.com') ||
         parsedUrl.hostname.endsWith('.substack.com')) {
-      // Check for paywall indicators
-      isPaywalled = $('.paywall').length > 0 ||
-                    $('.paywall-title').length > 0 ||
-                    $('[class*="paywall"]').length > 0 ||
-                    html.includes('This post is for paid subscribers') ||
-                    html.includes('This post is for paying subscribers') ||
-                    html.includes('Subscribe to continue reading') ||
-                    html.includes('Rest of this post is for paid');
-
-      if (isPaywalled) {
-        console.log('[Article Fetch] Substack paywall detected in response - cookie may be invalid/expired');
-      }
-
       // Try multiple selectors for Substack content
       articleText = $('.body.markup').text() ||
                     $('[class*="body markup"]').text() ||
@@ -132,7 +119,27 @@ export async function POST(request: Request) {
                     $('article .available-content').text() ||
                     $('article').text();
 
-      console.log(`[Article Fetch] Substack content length: ${articleText.length}, paywalled: ${isPaywalled}`);
+      // Check for paywall indicators ONLY if content is suspiciously short
+      // Full articles are typically 500+ words, paywalled previews are shorter
+      const wordCount = articleText.split(/\s+/).filter(w => w.length > 0).length;
+
+      // Only flag as paywalled if content is short AND has paywall indicators
+      if (wordCount < 500) {
+        const hasPaywallIndicators =
+          $('.paywall').length > 0 ||
+          $('.paywall-title').length > 0 ||
+          html.includes('Subscribe to continue reading') ||
+          html.includes('Rest of this post is for paid') ||
+          // Check for truncation message specifically in the content area
+          $('article').text().includes('This post is for paid subscribers');
+
+        if (hasPaywallIndicators) {
+          isPaywalled = true;
+          console.log('[Article Fetch] Substack paywall detected - short content with paywall indicators');
+        }
+      }
+
+      console.log(`[Article Fetch] Substack content: ${wordCount} words, paywalled: ${isPaywalled}`);
     }
     // Medium specific
     else if (parsedUrl.hostname.includes('medium.com')) {
