@@ -14,6 +14,7 @@ export interface PremiumService {
   loginUrl: string;
   cookieName: string; // Primary cookie to look for
   icon?: string;
+  experimental?: boolean; // Untested services
 }
 
 // Supported premium services
@@ -30,7 +31,7 @@ export const PREMIUM_SERVICES: PremiumService[] = [
     name: 'Financial Times',
     domain: 'ft.com',
     loginUrl: 'https://www.ft.com/login',
-    cookieName: 'FTSession',
+    cookieName: 'FTSession_s', // FT uses multiple cookies - Chrome extension recommended
   },
   {
     id: 'spectator',
@@ -38,6 +39,7 @@ export const PREMIUM_SERVICES: PremiumService[] = [
     domain: 'spectator.co.uk',
     loginUrl: 'https://www.spectator.co.uk/login',
     cookieName: 'spectator_session',
+    experimental: true,
   },
   {
     id: 'economist',
@@ -45,6 +47,7 @@ export const PREMIUM_SERVICES: PremiumService[] = [
     domain: 'economist.com',
     loginUrl: 'https://www.economist.com/api/auth/login',
     cookieName: 'ec_session',
+    experimental: true,
   },
   {
     id: 'nytimes',
@@ -52,6 +55,7 @@ export const PREMIUM_SERVICES: PremiumService[] = [
     domain: 'nytimes.com',
     loginUrl: 'https://myaccount.nytimes.com/auth/login',
     cookieName: 'NYT-S',
+    experimental: true,
   },
   {
     id: 'wsj',
@@ -59,6 +63,7 @@ export const PREMIUM_SERVICES: PremiumService[] = [
     domain: 'wsj.com',
     loginUrl: 'https://accounts.wsj.com/login',
     cookieName: 'wsjregion',
+    experimental: true,
   },
 ];
 
@@ -81,6 +86,9 @@ interface AuthState {
   // Custom services added by user
   customServices: PremiumService[];
 
+  // Hidden services (user doesn't want to see these)
+  hiddenServices: string[];
+
   // Actions
   setCredential: (serviceId: string, cookie: string) => void;
   clearCredential: (serviceId: string) => void;
@@ -88,6 +96,8 @@ interface AuthState {
   getServiceForDomain: (domain: string) => PremiumService | null;
   addCustomService: (service: Omit<PremiumService, 'id'>) => void;
   removeCustomService: (serviceId: string) => void;
+  hideService: (serviceId: string) => void;
+  showService: (serviceId: string) => void;
 
   // Legacy support (functions instead of getters for persistence compatibility)
   getSubstackCookie: () => string;
@@ -100,6 +110,7 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       credentials: {},
       customServices: [],
+      hiddenServices: [],
 
       setCredential: (serviceId, cookie) => {
         const cleaned = cookie.trim();
@@ -190,6 +201,20 @@ export const useAuthStore = create<AuthState>()(
         }));
       },
 
+      hideService: (serviceId) => {
+        set((state) => ({
+          hiddenServices: state.hiddenServices.includes(serviceId)
+            ? state.hiddenServices
+            : [...state.hiddenServices, serviceId],
+        }));
+      },
+
+      showService: (serviceId) => {
+        set((state) => ({
+          hiddenServices: state.hiddenServices.filter((id) => id !== serviceId),
+        }));
+      },
+
       // Legacy support for existing SubstackSettings component
       getSubstackCookie: () => {
         return get().credentials['substack']?.cookie || '';
@@ -205,10 +230,11 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'speed-reader-auth',
-      // Explicitly persist credentials and customServices
+      // Explicitly persist credentials, customServices, and hiddenServices
       partialize: (state) => ({
         credentials: state.credentials,
         customServices: state.customServices,
+        hiddenServices: state.hiddenServices,
       }),
       // Debug hydration
       onRehydrateStorage: () => {

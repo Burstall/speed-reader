@@ -98,6 +98,9 @@ export function FeedBrowser() {
         source: parsedArticleUrl.hostname,
       });
 
+      // Notify ReadingList to refresh
+      window.dispatchEvent(new CustomEvent('reading-list-updated'));
+
       setSaved(prev => new Set(prev).add(article.url));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save article');

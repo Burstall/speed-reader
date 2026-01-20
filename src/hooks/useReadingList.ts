@@ -36,6 +36,13 @@ export function useReadingList() {
     loadArticles();
   }, [loadArticles]);
 
+  // Listen for external save events (e.g., from FeedBrowser)
+  useEffect(() => {
+    const handleUpdate = () => loadArticles();
+    window.addEventListener('reading-list-updated', handleUpdate);
+    return () => window.removeEventListener('reading-list-updated', handleUpdate);
+  }, [loadArticles]);
+
   // Save a new article
   const save = useCallback(async (
     url: string,

@@ -313,20 +313,31 @@ function parseSubstackFeed($: cheerio.CheerioAPI, baseUrl: URL): FeedArticle[] {
 function parseFTFeed($: cheerio.CheerioAPI, baseUrl: URL): FeedArticle[] {
   const articles: FeedArticle[] = [];
 
-  $('article, .o-teaser').each((_, el) => {
+  // Try multiple FT article patterns
+  // Pattern 1: Modern teaser components
+  $('[data-trackable="story"], .o-teaser, article').each((_, el) => {
     const $el = $(el);
 
-    const $link = $el.find('a.js-teaser-heading-link, a[data-trackable="heading-link"], h3 a, h2 a').first();
-    const title = $link.text().trim() || $el.find('.o-teaser__heading').text().trim();
+    // Try various link selectors
+    const $link = $el.find('a[data-trackable="heading-link"], a.js-teaser-heading-link, .o-teaser__heading a, h3 a, h2 a, a[href*="/content/"]').first();
+    const title = $link.text().trim() ||
+                  $el.find('.o-teaser__heading, [class*="headline"], h2, h3').first().text().trim();
     let href = $link.attr('href') || '';
 
     if (!title || !href) return;
+    if (title.length < 10) return; // Skip navigation links
 
     if (href.startsWith('/')) {
       href = 'https://www.ft.com' + href;
     }
 
-    const excerpt = $el.find('.o-teaser__standfirst, p').first().text().trim();
+    // Skip non-article links
+    if (!href.includes('/content/') && !href.includes('/story/')) {
+      // Allow if it looks like an FT article URL
+      if (!href.match(/ft\.com\/[a-z-]+\/[a-f0-9-]+/i)) return;
+    }
+
+    const excerpt = $el.find('.o-teaser__standfirst, [class*="standfirst"], p').first().text().trim();
 
     articles.push({
       title: title.slice(0, 200),
@@ -334,6 +345,27 @@ function parseFTFeed($: cheerio.CheerioAPI, baseUrl: URL): FeedArticle[] {
       excerpt: excerpt.slice(0, 300) || undefined,
     });
   });
+
+  // Pattern 2: Links with content paths (fallback)
+  if (articles.length === 0) {
+    $('a[href*="/content/"]').each((_, el) => {
+      const $el = $(el);
+      const href = $el.attr('href') || '';
+      const title = $el.text().trim();
+
+      if (!title || title.length < 15 || title.length > 200) return;
+
+      const fullUrl = href.startsWith('/') ? 'https://www.ft.com' + href : href;
+
+      // Avoid duplicates
+      if (articles.some(a => a.url === fullUrl)) return;
+
+      articles.push({
+        title: title.slice(0, 200),
+        url: fullUrl,
+      });
+    });
+  }
 
   return articles;
 }
