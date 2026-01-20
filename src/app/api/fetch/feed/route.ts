@@ -165,19 +165,20 @@ async function fetchSubstackInboxAPI(cookie?: string): Promise<FeedArticle[]> {
       console.log(`${endpoint} returned keys:`, Object.keys(data));
 
       // Try to find posts in various response structures
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let posts: any[] = [];
+      let posts: Record<string, unknown>[] = [];
 
       if (Array.isArray(data)) {
-        posts = data;
+        posts = data as Record<string, unknown>[];
       } else if (data.posts) {
-        posts = data.posts;
+        posts = data.posts as Record<string, unknown>[];
       } else if (data.items) {
-        posts = data.items;
+        posts = data.items as Record<string, unknown>[];
       } else if (data.inbox) {
-        posts = data.inbox;
+        posts = data.inbox as Record<string, unknown>[];
       } else if (data.data) {
-        posts = Array.isArray(data.data) ? data.data : [data.data];
+        posts = Array.isArray(data.data)
+          ? data.data as Record<string, unknown>[]
+          : [data.data as Record<string, unknown>];
       }
 
       if (posts.length === 0) {
@@ -191,15 +192,17 @@ async function fetchSubstackInboxAPI(cookie?: string): Promise<FeedArticle[]> {
         if (!post) continue;
 
         // Handle nested post structure (post might be wrapper with .post inside)
-        const actualPost = post.post || post;
+        const actualPost = (post.post as Record<string, unknown>) || post;
 
-        const title = actualPost.title;
-        let url = actualPost.canonical_url;
+        const title = actualPost.title as string | undefined;
+        let url = actualPost.canonical_url as string | undefined;
 
         // Build URL from slug if no canonical_url
         if (!url && actualPost.slug) {
-          const subdomain = actualPost.publication?.subdomain ||
-                           post.publication?.subdomain ||
+          const pubFromActual = actualPost.publication as Record<string, unknown> | undefined;
+          const pubFromPost = post.publication as Record<string, unknown> | undefined;
+          const subdomain = pubFromActual?.subdomain ||
+                           pubFromPost?.subdomain ||
                            actualPost.publication_id;
           if (subdomain) {
             url = `https://${subdomain}.substack.com/p/${actualPost.slug}`;
@@ -208,14 +211,18 @@ async function fetchSubstackInboxAPI(cookie?: string): Promise<FeedArticle[]> {
 
         if (!title || !url) continue;
 
+        const bylines = actualPost.publishedBylines as Array<{ name?: string }> | undefined;
+        const pubFromActual = actualPost.publication as Record<string, unknown> | undefined;
+        const pubFromPost = post.publication as Record<string, unknown> | undefined;
+
         articles.push({
           title: title.slice(0, 200),
           url,
-          excerpt: (actualPost.subtitle || actualPost.description || actualPost.truncated_body_text || '').slice(0, 300) || undefined,
-          date: actualPost.post_date || actualPost.published_at,
-          author: actualPost.publishedBylines?.[0]?.name ||
-                  post.publication?.name ||
-                  actualPost.publication?.name,
+          excerpt: ((actualPost.subtitle || actualPost.description || actualPost.truncated_body_text || '') as string).slice(0, 300) || undefined,
+          date: (actualPost.post_date || actualPost.published_at) as string | undefined,
+          author: bylines?.[0]?.name ||
+                  (pubFromPost?.name as string | undefined) ||
+                  (pubFromActual?.name as string | undefined),
           isPremium: actualPost.audience === 'only_paid',
         });
       }
