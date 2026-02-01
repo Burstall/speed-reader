@@ -36,30 +36,34 @@ export function DeviceSync() {
   const [qrUrl, setQrUrl] = useState('');
   const [qrSettingsOnly, setQrSettingsOnly] = useState(false);
 
+  // Per-credential QR
+  const [selectedCredential, setSelectedCredential] = useState('');
+  const [credentialQrUrl, setCredentialQrUrl] = useState('');
+
   const { wpm, focalColor, theme } = useReaderStore();
   const { credentials, customServices } = useAuthStore();
 
-  const credentialCount = Object.keys(credentials).length;
+  const credentialIds = Object.keys(credentials);
+  const credentialCount = credentialIds.length;
 
+  // Generate main QR (full or settings-only) and full URL for Copy Link
   useEffect(() => {
     if (expanded && typeof window !== 'undefined') {
       const origin = window.location.origin;
       const settings = { wpm, focalColor, theme };
       const auth = { credentials, customServices };
 
-      // Always generate full URL for Copy Link
       const fullData = gatherSyncData(settings, auth);
       generateSyncUrl(origin, fullData).then(async (url) => {
         setFullUrl(url);
 
-        // If full URL fits in QR, use it
         if (url.length <= QR_MAX_LENGTH) {
           setQrUrl(url);
           setQrSettingsOnly(false);
+          setSelectedCredential('');
           return;
         }
 
-        // Otherwise, generate settings-only URL for QR
         const settingsOnlyData = gatherSyncData(settings, { credentials: {}, customServices: [] });
         const settingsUrl = await generateSyncUrl(origin, settingsOnlyData);
         setQrUrl(settingsUrl);
@@ -67,6 +71,26 @@ export function DeviceSync() {
       });
     }
   }, [expanded, wpm, focalColor, theme, credentials, customServices]);
+
+  // Generate per-credential QR when dropdown selection changes
+  useEffect(() => {
+    if (!selectedCredential || !expanded) {
+      setCredentialQrUrl('');
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      const origin = window.location.origin;
+      const singleCred = { [selectedCredential]: credentials[selectedCredential] };
+      const data = gatherSyncData(
+        { wpm, focalColor, theme },
+        { credentials: singleCred, customServices: [] }
+      );
+      generateSyncUrl(origin, data).then((url) => {
+        setCredentialQrUrl(url);
+      });
+    }
+  }, [selectedCredential, expanded, wpm, focalColor, theme, credentials, customServices]);
 
   const handleCopy = async () => {
     try {
@@ -82,6 +106,14 @@ export function DeviceSync() {
     const service = PREMIUM_SERVICES.find(s => s.id === serviceId);
     return service?.name || serviceId;
   };
+
+  const qrFallback = (
+    <div className="w-[180px] h-[180px] flex items-center justify-center">
+      <p className="text-xs text-red-600 text-center px-2">
+        QR generation failed. Use &quot;Copy Link&quot; instead.
+      </p>
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -106,18 +138,10 @@ export function DeviceSync() {
 
       {expanded && (
         <div className="space-y-4">
-          {/* QR Code */}
+          {/* Settings QR Code */}
           <div className="flex flex-col items-center gap-3 p-4 bg-white rounded-lg">
             {qrUrl ? (
-              <QRErrorBoundary
-                fallback={
-                  <div className="w-[180px] h-[180px] flex items-center justify-center">
-                    <p className="text-xs text-red-600 text-center px-2">
-                      QR code generation failed. Use &quot;Copy Link&quot; below instead.
-                    </p>
-                  </div>
-                }
-              >
+              <QRErrorBoundary fallback={qrFallback}>
                 <QRCodeSVG
                   value={qrUrl}
                   size={180}
@@ -129,51 +153,94 @@ export function DeviceSync() {
               <div className="w-[180px] h-[180px] bg-gray-100 animate-pulse rounded" />
             )}
             <p className="text-xs text-gray-600 text-center">
-              Scan with your phone camera
+              {qrSettingsOnly ? 'Step 1: Scan for settings' : 'Scan with your phone camera'}
             </p>
           </div>
 
           {/* What's included */}
           <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs">
             <p className="font-medium text-gray-700 dark:text-gray-300 mb-2">
-              QR includes:
+              {qrSettingsOnly ? 'Settings QR includes:' : 'QR includes:'}
             </p>
             <ul className="space-y-1 text-gray-600 dark:text-gray-400">
               <li className="flex items-center gap-2">
-                <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-3 h-3 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
                 Reading speed: {wpm} WPM
               </li>
               <li className="flex items-center gap-2">
-                <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-3 h-3 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
                 Focal color: <span className="capitalize">{focalColor}</span>
               </li>
               <li className="flex items-center gap-2">
-                <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-3 h-3 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
                 Theme: <span className="capitalize">{theme}</span>
               </li>
               {credentialCount > 0 && !qrSettingsOnly && (
                 <li className="flex items-center gap-2">
-                  <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-3 h-3 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
-                  Premium: {Object.keys(credentials).map(getServiceName).join(', ')}
+                  Premium: {credentialIds.map(getServiceName).join(', ')}
                 </li>
               )}
             </ul>
-            {qrSettingsOnly && credentialCount > 0 && (
-              <p className="mt-2 text-yellow-600 dark:text-yellow-500">
-                Credentials too large for QR. Use &quot;Copy Full Link&quot; to transfer everything.
-              </p>
-            )}
           </div>
 
-          {/* Copy button */}
+          {/* Per-credential QR picker — shown when credentials overflow */}
+          {qrSettingsOnly && credentialCount > 0 && (
+            <div className="space-y-3">
+              <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Step 2: Sync a credential
+                </label>
+                <select
+                  value={selectedCredential}
+                  onChange={(e) => setSelectedCredential(e.target.value)}
+                  className="w-full px-2 py-1.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700
+                             text-sm text-gray-800 dark:text-gray-200 rounded-md"
+                >
+                  <option value="">Select a service...</option>
+                  {credentialIds.map((id) => (
+                    <option key={id} value={id}>{getServiceName(id)}</option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedCredential && (
+                <div className="flex flex-col items-center gap-3 p-4 bg-white rounded-lg">
+                  {credentialQrUrl ? (
+                    <QRErrorBoundary fallback={qrFallback}>
+                      <QRCodeSVG
+                        value={credentialQrUrl}
+                        size={180}
+                        level="L"
+                        includeMargin={false}
+                      />
+                    </QRErrorBoundary>
+                  ) : (
+                    <div className="w-[180px] h-[180px] bg-gray-100 animate-pulse rounded" />
+                  )}
+                  <p className="text-xs text-gray-600 text-center">
+                    Scan to add {getServiceName(selectedCredential)}
+                  </p>
+                </div>
+              )}
+
+              {credentialIds.length > 1 && (
+                <p className="text-xs text-gray-500 dark:text-gray-600 text-center">
+                  Repeat for each service you want to sync
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Copy button — always copies full payload */}
           <button
             onClick={handleCopy}
             className="w-full py-2 px-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600
@@ -193,15 +260,15 @@ export function DeviceSync() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
-                {qrSettingsOnly && credentialCount > 0 ? 'Copy Full Link (with credentials)' : 'Copy Link'}
+                {qrSettingsOnly && credentialCount > 0 ? 'Copy Full Link (everything)' : 'Copy Link'}
               </>
             )}
           </button>
 
           <p className="text-xs text-gray-500 dark:text-gray-600 text-center">
             {qrSettingsOnly && credentialCount > 0
-              ? 'Open copied link on mobile to sync settings + credentials'
-              : 'QR codes contain your session cookies. Don\u0027t share publicly.'}
+              ? 'Or copy link to transfer settings + all credentials at once'
+              : 'QR contains your session cookies. Don\u0027t share publicly.'}
           </p>
         </div>
       )}
