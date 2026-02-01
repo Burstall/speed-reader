@@ -34,3 +34,6 @@ next-env.d.ts
 .claude/
 
 .vercel
+
+# Extension build artifact
+speed-reader-extension.zip

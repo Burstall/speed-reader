@@ -7,15 +7,11 @@
     "cookies",
     "activeTab",
     "tabs",
-    "storage"
+    "storage",
+    "scripting"
   ],
   "host_permissions": [
-    "https://*.substack.com/*",
-    "https://*.ft.com/*",
-    "https://*.spectator.co.uk/*",
-    "https://*.economist.com/*",
-    "https://*.nytimes.com/*",
-    "https://*.wsj.com/*"
+    "<all_urls>"
   ],
   "action": {
     "default_popup": "popup.html",

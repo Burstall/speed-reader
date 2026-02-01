@@ -179,7 +179,15 @@ function showArticleView() {
     setTimeout(() => { saveUrlBtn.textContent = 'Save URL'; }, 1500);
   });
 
-  // "Read in Speed Reader" click handler
+  const sendUrlBtn = document.getElementById('sendUrlBtn');
+  const routeHint = document.getElementById('routeHint');
+
+  // Update hint for premium sites
+  if (currentService) {
+    routeHint.textContent = 'Extracts text + saves credentials';
+  }
+
+  // Route B: "Read in Speed Reader" — extract content from page DOM (primary)
   readBtn.addEventListener('click', async () => {
     if (!appUrl) {
       showStatus(statusEl, 'Enter your Speed Reader URL in settings below', 'error');
@@ -188,7 +196,51 @@ function showArticleView() {
     }
 
     readBtn.disabled = true;
-    readBtn.textContent = 'Opening...';
+    readBtn.textContent = 'Extracting...';
+
+    try {
+      showStatus(statusEl, 'Extracting article...', 'loading');
+      const content = await extractContent(currentTab.id);
+
+      if (!content || !content.text || content.text.trim().length < 50) {
+        showStatus(statusEl, 'Could not extract article text. Try "Send URL only".', 'error');
+        readBtn.disabled = false;
+        readBtn.textContent = 'Read in Speed Reader';
+        return;
+      }
+
+      // For premium sites, also capture cookies in background (fire-and-forget)
+      if (currentService) {
+        captureCookies(currentDomain).then(cookieStr => {
+          const authUrl = new URL('/auth/receive', appUrl);
+          authUrl.searchParams.set('service', currentService.id);
+          authUrl.searchParams.set('cookie', cookieStr);
+          fetch(authUrl.toString()).catch(() => {});
+        }).catch(() => {});
+      }
+
+      // Build hash fragment: #title={encoded}&content={encoded}
+      const hash = `#title=${encodeURIComponent(content.title)}&content=${encodeURIComponent(content.text)}`;
+      const targetUrl = `${appUrl.replace(/\/$/, '')}/${hash}`;
+
+      chrome.tabs.create({ url: targetUrl });
+    } catch (err) {
+      showStatus(statusEl, `Error: ${err.message}`, 'error');
+      readBtn.disabled = false;
+      readBtn.textContent = 'Read in Speed Reader';
+    }
+  });
+
+  // Route A: "Send URL only" — pass URL for server-side fetch (secondary)
+  sendUrlBtn.addEventListener('click', async () => {
+    if (!appUrl) {
+      showStatus(statusEl, 'Enter your Speed Reader URL in settings below', 'error');
+      settingsPanel.classList.remove('hidden');
+      return;
+    }
+
+    sendUrlBtn.disabled = true;
+    sendUrlBtn.textContent = 'Opening...';
 
     try {
       if (currentService) {
@@ -211,10 +263,50 @@ function showArticleView() {
       }
     } catch (err) {
       showStatus(statusEl, `Error: ${err.message}`, 'error');
-      readBtn.disabled = false;
-      readBtn.textContent = 'Read in Speed Reader';
+      sendUrlBtn.disabled = false;
+      sendUrlBtn.textContent = 'Send URL only';
     }
   });
+}
+
+// --- Content Extraction ---
+
+async function extractContent(tabId) {
+  const [result] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => {
+      // Extract title
+      const title = document.querySelector('h1')?.innerText
+        || document.title;
+
+      // Extract article body text using common selectors
+      const selectors = [
+        'article',
+        '[role="article"]',
+        '.post-content',
+        '.article-content',
+        '.entry-content',
+        'main',
+        '.post-body',
+      ];
+
+      let text = '';
+      for (const sel of selectors) {
+        const el = document.querySelector(sel);
+        if (el && el.innerText.length > text.length) {
+          text = el.innerText;
+        }
+      }
+
+      // Fallback to body
+      if (text.length < 100) {
+        text = document.body.innerText;
+      }
+
+      return { title, text };
+    },
+  });
+  return result.result;
 }
 
 // --- Helpers ---

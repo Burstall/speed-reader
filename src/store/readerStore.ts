@@ -13,7 +13,7 @@ interface LaunchState {
 
 interface ContentMeta {
   title: string;
-  source: 'text' | 'pdf' | 'url';
+  source: 'text' | 'pdf' | 'url' | 'extension';
   sourceUrl?: string;
   headings?: ContentHeading[];
 }

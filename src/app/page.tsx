@@ -28,13 +28,39 @@ function ArticleAutoLoader() {
   const { setContent } = useReaderStore();
   const { getCredentialForDomain } = useAuthStore();
   const hasAutoLoaded = useRef(false);
-  const [toast, setToast] = useState<{ message: string; type: 'loading' | 'error' } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'loading' | 'error' | 'success' } | null>(null);
 
   useEffect(() => {
-    // Read directly from window.location to avoid useSearchParams/Suspense issues
+    if (hasAutoLoaded.current) return;
+
+    // Route B: Check hash fragment for directly-passed content first
+    const hash = window.location.hash;
+    if (hash && hash.length > 1) {
+      const hashParams = new URLSearchParams(hash.substring(1));
+      const title = hashParams.get('title');
+      const content = hashParams.get('content');
+
+      if (content && content.trim().length > 0) {
+        hasAutoLoaded.current = true;
+
+        // Clean URL bar
+        window.history.replaceState({}, '', '/');
+
+        setContent(content, {
+          title: title || 'Untitled',
+          source: 'extension',
+        });
+
+        setToast({ message: 'Article loaded', type: 'success' });
+        setTimeout(() => setToast(null), 2000);
+        return;
+      }
+    }
+
+    // Route A: Check ?article= query param for server-side fetch
     const params = new URLSearchParams(window.location.search);
     const rawArticleUrl = params.get('article');
-    if (!rawArticleUrl || hasAutoLoaded.current) return;
+    if (!rawArticleUrl) return;
     const articleUrl: string = rawArticleUrl;
     hasAutoLoaded.current = true;
 
@@ -91,7 +117,9 @@ function ArticleAutoLoader() {
       className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm max-w-xs ${
         toast.type === 'loading'
           ? 'bg-blue-600 text-white'
-          : 'bg-red-600 text-white'
+          : toast.type === 'success'
+            ? 'bg-green-600 text-white'
+            : 'bg-red-600 text-white'
       }`}
     >
       {toast.type === 'loading' && (

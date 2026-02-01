@@ -155,6 +155,14 @@
       background: #16a34a;
     }
 
+    /* Hint text */
+    .hint {
+      font-size: 11px;
+      color: #666;
+      margin-top: 8px;
+      text-align: center;
+    }
+
     /* Settings */
     .settings-toggle {
       display: block;
@@ -245,6 +253,12 @@
     <button class="btn-primary" id="readBtn">
       Read in Speed Reader
     </button>
+
+    <button class="btn-secondary" id="sendUrlBtn">
+      Send URL only
+    </button>
+
+    <p class="hint" id="routeHint">Extracts article text from page</p>
 
     <button class="settings-toggle" id="settingsToggle">Change saved URL</button>
     <div class="settings hidden" id="settingsPanel">
