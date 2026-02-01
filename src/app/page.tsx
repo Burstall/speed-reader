@@ -33,8 +33,9 @@ function ArticleAutoLoader() {
   useEffect(() => {
     // Read directly from window.location to avoid useSearchParams/Suspense issues
     const params = new URLSearchParams(window.location.search);
-    const articleUrl = params.get('article');
-    if (!articleUrl || hasAutoLoaded.current) return;
+    const rawArticleUrl = params.get('article');
+    if (!rawArticleUrl || hasAutoLoaded.current) return;
+    const articleUrl: string = rawArticleUrl;
     hasAutoLoaded.current = true;
 
     // Clean URL bar silently (after reading params)
