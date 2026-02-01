@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Component, useState, useEffect, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { useReaderStore } from '@/store/readerStore';
 import { useAuthStore, PREMIUM_SERVICES } from '@/store/authStore';
@@ -12,6 +12,20 @@ const QRCodeSVG = dynamic(
   { ssr: false, loading: () => <div className="w-[180px] h-[180px] bg-gray-100 animate-pulse rounded" /> }
 );
 
+// Error boundary to catch QR encoding overflow
+class QRErrorBoundary extends Component<
+  { fallback: ReactNode; children: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    return this.state.hasError ? this.props.fallback : this.props.children;
+  }
+}
+
 export function DeviceSync() {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -22,8 +36,6 @@ export function DeviceSync() {
 
   const credentialCount = Object.keys(credentials).length;
 
-  const [qrError, setQrError] = useState(false);
-
   useEffect(() => {
     if (expanded && typeof window !== 'undefined') {
       const syncData = gatherSyncData(
@@ -32,9 +44,6 @@ export function DeviceSync() {
       );
       generateSyncUrl(window.location.origin, syncData).then((url) => {
         setSyncUrl(url);
-        setQrError(false);
-      }).catch(() => {
-        setQrError(true);
       });
     }
   }, [expanded, wpm, focalColor, theme, credentials, customServices]);
@@ -79,24 +88,28 @@ export function DeviceSync() {
         <div className="space-y-4">
           {/* QR Code */}
           <div className="flex flex-col items-center gap-3 p-4 bg-white rounded-lg">
-            {qrError ? (
-              <div className="w-[180px] h-[180px] flex items-center justify-center">
-                <p className="text-xs text-red-600 text-center px-2">
-                  Payload too large for QR code. Use &quot;Copy Link&quot; below instead.
-                </p>
-              </div>
-            ) : syncUrl ? (
-              <QRCodeSVG
-                value={syncUrl}
-                size={180}
-                level="L"
-                includeMargin={false}
-              />
+            {syncUrl ? (
+              <QRErrorBoundary
+                fallback={
+                  <div className="w-[180px] h-[180px] flex items-center justify-center">
+                    <p className="text-xs text-red-600 text-center px-2">
+                      Payload too large for QR code. Use &quot;Copy Link&quot; below instead.
+                    </p>
+                  </div>
+                }
+              >
+                <QRCodeSVG
+                  value={syncUrl}
+                  size={180}
+                  level="L"
+                  includeMargin={false}
+                />
+              </QRErrorBoundary>
             ) : (
               <div className="w-[180px] h-[180px] bg-gray-100 animate-pulse rounded" />
             )}
             <p className="text-xs text-gray-600 text-center">
-              {qrError ? 'Copy link to send manually' : 'Scan with your phone camera'}
+              Scan with your phone camera or copy link below
             </p>
           </div>
 
