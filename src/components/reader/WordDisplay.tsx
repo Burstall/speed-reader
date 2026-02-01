@@ -39,16 +39,16 @@ export function WordDisplay({ chunk, focalColor }: WordDisplayProps) {
       {/* Word container - uses CSS grid to center focal letter precisely */}
       <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
         <div
-          className="grid items-baseline font-mono text-gray-900 dark:text-white"
+          className="grid items-baseline font-mono text-gray-900 dark:text-white whitespace-nowrap w-full px-2"
           style={{
             gridTemplateColumns: '1fr auto 1fr',
-            fontSize: `calc(clamp(1.25rem, 5vw, 3.5rem) * ${fontScale})`,
+            fontSize: `calc(clamp(1rem, 5vw, 3.5rem) * ${fontScale})`,
             letterSpacing: '0.04em',
             gap: '0 0.08em',
           }}
         >
           {/* Before focal - right-aligned to butt against center */}
-          <span className="text-right" style={{ minWidth: 0, overflow: 'hidden' }}>
+          <span className="text-right" style={{ minWidth: 0 }}>
             {before}
           </span>
 
@@ -65,7 +65,7 @@ export function WordDisplay({ chunk, focalColor }: WordDisplayProps) {
           </span>
 
           {/* After focal - left-aligned starting from center */}
-          <span className="text-left" style={{ minWidth: 0, overflow: 'hidden' }}>
+          <span className="text-left" style={{ minWidth: 0 }}>
             {after}
           </span>
         </div>

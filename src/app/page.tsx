@@ -328,7 +328,7 @@ export default function Home() {
           {/* Reader Card - touch enabled */}
           <div
             ref={readerRef}
-            className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-6 md:p-8 shadow-2xl
+            className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-6 sm:px-6 md:p-8 shadow-2xl
                        select-none touch-manipulation"
           >
             {/* Word Display */}
