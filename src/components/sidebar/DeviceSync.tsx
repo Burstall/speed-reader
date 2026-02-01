@@ -22,14 +22,20 @@ export function DeviceSync() {
 
   const credentialCount = Object.keys(credentials).length;
 
+  const [qrError, setQrError] = useState(false);
+
   useEffect(() => {
     if (expanded && typeof window !== 'undefined') {
       const syncData = gatherSyncData(
         { wpm, focalColor, theme },
         { credentials, customServices }
       );
-      const url = generateSyncUrl(window.location.origin, syncData);
-      setSyncUrl(url);
+      generateSyncUrl(window.location.origin, syncData).then((url) => {
+        setSyncUrl(url);
+        setQrError(false);
+      }).catch(() => {
+        setQrError(true);
+      });
     }
   }, [expanded, wpm, focalColor, theme, credentials, customServices]);
 
@@ -73,18 +79,24 @@ export function DeviceSync() {
         <div className="space-y-4">
           {/* QR Code */}
           <div className="flex flex-col items-center gap-3 p-4 bg-white rounded-lg">
-            {syncUrl ? (
+            {qrError ? (
+              <div className="w-[180px] h-[180px] flex items-center justify-center">
+                <p className="text-xs text-red-600 text-center px-2">
+                  Payload too large for QR code. Use &quot;Copy Link&quot; below instead.
+                </p>
+              </div>
+            ) : syncUrl ? (
               <QRCodeSVG
                 value={syncUrl}
                 size={180}
-                level="M"
+                level="L"
                 includeMargin={false}
               />
             ) : (
               <div className="w-[180px] h-[180px] bg-gray-100 animate-pulse rounded" />
             )}
             <p className="text-xs text-gray-600 text-center">
-              Scan with your phone camera
+              {qrError ? 'Copy link to send manually' : 'Scan with your phone camera'}
             </p>
           </div>
 

@@ -23,13 +23,15 @@ export default function SyncPage() {
       return;
     }
 
-    const data = decodeSync(hash);
-    if (!data) {
+    decodeSync(hash).then((data) => {
+      if (!data) {
+        setError('Invalid or corrupted sync data');
+        return;
+      }
+      setSyncData(data);
+    }).catch(() => {
       setError('Invalid or corrupted sync data');
-      return;
-    }
-
-    setSyncData(data);
+    });
   }, []);
 
   const handleImport = () => {
