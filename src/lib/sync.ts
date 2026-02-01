@@ -53,7 +53,9 @@ async function compress(data: string): Promise<Uint8Array> {
 }
 
 async function decompress(data: Uint8Array): Promise<string> {
-  const blob = new Blob([data]);
+  const buf = new ArrayBuffer(data.byteLength);
+  new Uint8Array(buf).set(data);
+  const blob = new Blob([buf]);
   const ds = new DecompressionStream('deflate');
   const stream = blob.stream().pipeThrough(ds);
   return new Response(stream).text();
