@@ -46,3 +46,10 @@ export interface ORPResult {
   after: string;
   focalIndex: number;
 }
+
+// Content heading for progress bar markers
+export interface ContentHeading {
+  wordIndex: number;
+  title: string;
+  level: number;
+}

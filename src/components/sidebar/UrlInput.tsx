@@ -85,6 +85,7 @@ export function UrlInput() {
         title,
         source: 'url',
         sourceUrl: url.trim(),
+        headings: data.headings,
       });
       setArticleTitle(title);
       setUrl('');

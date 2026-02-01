@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { FocalColor } from '@/types';
-import { tokenizeText } from '@/lib/orp';
+import type { FocalColor, ContentHeading } from '@/types';
+import { tokenizeText, findPreviousSentenceStart, findNextSentenceStart } from '@/lib/orp';
 
 interface LaunchState {
   isLaunching: boolean;
@@ -15,6 +15,7 @@ interface ContentMeta {
   title: string;
   source: 'text' | 'pdf' | 'url';
   sourceUrl?: string;
+  headings?: ContentHeading[];
 }
 
 interface ReaderState {
@@ -33,6 +34,7 @@ interface ReaderState {
   // Settings
   focalColor: FocalColor;
   theme: 'dark' | 'light' | 'system';
+  chunkSize: 1 | 2 | 3;
 
   // Computed
   progress: number;
@@ -46,10 +48,13 @@ interface ReaderState {
   setWpm: (wpm: number) => void;
   setFocalColor: (color: FocalColor) => void;
   setTheme: (theme: 'dark' | 'light' | 'system') => void;
+  setChunkSize: (size: 1 | 2 | 3) => void;
   advance: () => void;
   goBack: (words?: number) => void;
   goForward: (words?: number) => void;
   jumpTo: (index: number) => void;
+  goBackSentence: () => void;
+  goForwardSentence: () => void;
   reset: () => void;
 
   // Launch mode actions
@@ -80,6 +85,7 @@ export const useReaderStore = create<ReaderState>()(
       wpm: 300,
       focalColor: 'red',
       theme: 'dark',
+      chunkSize: 1,
       progress: 0,
       launch: INITIAL_LAUNCH,
 
@@ -97,6 +103,7 @@ export const useReaderStore = create<ReaderState>()(
             title: meta.title || `Untitled (${wordCount} words)`,
             source: meta.source || 'text',
             sourceUrl: meta.sourceUrl,
+            headings: meta.headings,
           } : {
             title: `Pasted text (${wordCount} words)`,
             source: 'text',
@@ -137,10 +144,17 @@ export const useReaderStore = create<ReaderState>()(
 
       setTheme: (theme) => set({ theme }),
 
+      setChunkSize: (chunkSize) => {
+        const { currentIndex } = get();
+        // Snap current position to chunk boundary
+        const snapped = Math.floor(currentIndex / chunkSize) * chunkSize;
+        set({ chunkSize, currentIndex: snapped });
+      },
+
       advance: () => {
-        const { currentIndex, words } = get();
+        const { currentIndex, words, chunkSize } = get();
         if (currentIndex < words.length - 1) {
-          const newIndex = currentIndex + 1;
+          const newIndex = Math.min(currentIndex + chunkSize, words.length - 1);
           set({
             currentIndex: newIndex,
             progress: (newIndex / (words.length - 1)) * 100,
@@ -152,29 +166,57 @@ export const useReaderStore = create<ReaderState>()(
       },
 
       goBack: (count = 10) => {
-        const { currentIndex, words } = get();
+        const { currentIndex, words, chunkSize } = get();
         const newIndex = Math.max(0, currentIndex - count);
+        // Snap to chunk boundary
+        const snapped = Math.floor(newIndex / chunkSize) * chunkSize;
         set({
-          currentIndex: newIndex,
-          progress: words.length > 1 ? (newIndex / (words.length - 1)) * 100 : 0,
+          currentIndex: snapped,
+          progress: words.length > 1 ? (snapped / (words.length - 1)) * 100 : 0,
         });
       },
 
       goForward: (count = 10) => {
-        const { currentIndex, words } = get();
+        const { currentIndex, words, chunkSize } = get();
         const newIndex = Math.min(words.length - 1, currentIndex + count);
+        // Snap to chunk boundary
+        const snapped = Math.floor(newIndex / chunkSize) * chunkSize;
         set({
-          currentIndex: newIndex,
-          progress: words.length > 1 ? (newIndex / (words.length - 1)) * 100 : 0,
+          currentIndex: snapped,
+          progress: words.length > 1 ? (snapped / (words.length - 1)) * 100 : 0,
         });
       },
 
       jumpTo: (index) => {
-        const { words } = get();
-        const newIndex = Math.min(words.length - 1, Math.max(0, index));
+        const { words, chunkSize } = get();
+        const clamped = Math.min(words.length - 1, Math.max(0, index));
+        // Snap to chunk boundary
+        const snapped = Math.floor(clamped / chunkSize) * chunkSize;
         set({
-          currentIndex: newIndex,
-          progress: words.length > 1 ? (newIndex / (words.length - 1)) * 100 : 0,
+          currentIndex: snapped,
+          progress: words.length > 1 ? (snapped / (words.length - 1)) * 100 : 0,
+        });
+      },
+
+      goBackSentence: () => {
+        const { currentIndex, words, chunkSize } = get();
+        const target = findPreviousSentenceStart(words, currentIndex);
+        // Snap to chunk boundary
+        const snapped = Math.floor(target / chunkSize) * chunkSize;
+        set({
+          currentIndex: snapped,
+          progress: words.length > 1 ? (snapped / (words.length - 1)) * 100 : 0,
+        });
+      },
+
+      goForwardSentence: () => {
+        const { currentIndex, words, chunkSize } = get();
+        const target = findNextSentenceStart(words, currentIndex);
+        // Snap to chunk boundary
+        const snapped = Math.floor(target / chunkSize) * chunkSize;
+        set({
+          currentIndex: snapped,
+          progress: words.length > 1 ? (snapped / (words.length - 1)) * 100 : 0,
         });
       },
 
@@ -242,6 +284,7 @@ export const useReaderStore = create<ReaderState>()(
         wpm: state.wpm,
         focalColor: state.focalColor,
         theme: state.theme,
+        chunkSize: state.chunkSize,
       }),
     }
   )

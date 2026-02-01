@@ -1,11 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "Speed Reader Cookie Capture",
-  "version": "1.0.0",
-  "description": "Capture premium service cookies for Speed Reader app",
+  "name": "Speed Reader",
+  "version": "1.1.0",
+  "description": "Send articles to Speed Reader with one click",
   "permissions": [
     "cookies",
-    "activeTab"
+    "activeTab",
+    "tabs",
+    "storage"
   ],
   "host_permissions": [
     "https://*.substack.com/*",

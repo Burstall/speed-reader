@@ -1,16 +1,22 @@
 'use client';
 
-import { calculateORP } from '@/lib/orp';
+import { calculateORP, calculateChunkORP } from '@/lib/orp';
 import { FOCAL_COLORS, type FocalColor } from '@/types';
 
 interface WordDisplayProps {
-  word: string;
+  chunk: string[];
   focalColor: FocalColor;
 }
 
-export function WordDisplay({ word, focalColor }: WordDisplayProps) {
-  const { before, focal, after } = calculateORP(word);
+export function WordDisplay({ chunk, focalColor }: WordDisplayProps) {
+  const word = chunk.join(' ');
+  const { before, focal, after } = chunk.length > 1
+    ? calculateChunkORP(chunk)
+    : calculateORP(word);
   const colorHex = FOCAL_COLORS[focalColor];
+
+  // Dynamic font scaling for long words (15+ chars)
+  const fontScale = word.length >= 15 ? Math.max(0.7, 15 / word.length) : 1;
 
   if (!word) {
     return (
@@ -36,12 +42,13 @@ export function WordDisplay({ word, focalColor }: WordDisplayProps) {
           className="grid items-baseline font-mono text-gray-900 dark:text-white"
           style={{
             gridTemplateColumns: '1fr auto 1fr',
-            fontSize: 'clamp(1.75rem, 5vw, 3.5rem)',
-            letterSpacing: '0.05em',
+            fontSize: `calc(clamp(1.25rem, 5vw, 3.5rem) * ${fontScale})`,
+            letterSpacing: '0.04em',
+            gap: '0 0.08em',
           }}
         >
           {/* Before focal - right-aligned to butt against center */}
-          <span className="text-right pr-1">
+          <span className="text-right" style={{ minWidth: 0, overflow: 'hidden' }}>
             {before}
           </span>
 
@@ -58,7 +65,7 @@ export function WordDisplay({ word, focalColor }: WordDisplayProps) {
           </span>
 
           {/* After focal - left-aligned starting from center */}
-          <span className="text-left pl-1">
+          <span className="text-left" style={{ minWidth: 0, overflow: 'hidden' }}>
             {after}
           </span>
         </div>

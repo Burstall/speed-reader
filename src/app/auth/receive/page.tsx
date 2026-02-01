@@ -50,13 +50,24 @@ function ReceiveContent() {
     // Save the cookie
     try {
       setCredential(service.id, cookie);
-      setStatus('success');
-      setMessage(`Connected to ${service.name}!`);
 
-      // Redirect to home after delay
+      // Check for article URL to forward
+      const articleUrl = searchParams.get('article');
+
+      setStatus('success');
+      setMessage(articleUrl
+        ? `Connected to ${service.name}! Opening article...`
+        : `Connected to ${service.name}!`
+      );
+
+      // Redirect to home after delay, with article param if present
       setTimeout(() => {
-        router.push('/');
-      }, 2000);
+        if (articleUrl) {
+          router.push(`/?article=${encodeURIComponent(articleUrl)}`);
+        } else {
+          router.push('/');
+        }
+      }, 1500);
     } catch (err) {
       setStatus('error');
       setMessage('Failed to save credentials');
@@ -81,11 +92,8 @@ function ReceiveContent() {
             </svg>
           </div>
           <p className="mt-4 text-gray-900 dark:text-white font-medium">{message}</p>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            You can now read {serviceName} articles offline
-          </p>
           <p className="mt-4 text-xs text-gray-400 dark:text-gray-600">
-            Redirecting to reader...
+            Redirecting...
           </p>
         </>
       )}

@@ -125,6 +125,43 @@ export async function POST(request: Request) {
       }
     }
 
+    // Extract headings by finding h2/h3 elements and mapping to word positions
+    const headings: { wordIndex: number; title: string; level: number }[] = [];
+
+    const articleEl = $('article').length > 0 ? $('article') : $('main').length > 0 ? $('main') : $('body');
+    const allText = articleEl.text();
+    const allTextWords = allText.trim().split(/\s+/).filter(w => w.length > 0);
+
+    articleEl.find('h2, h3').each((_, el) => {
+      const headingText = $(el).text().trim();
+      if (!headingText) return;
+
+      const tagName = el.tagName?.toLowerCase();
+      const headingWords = headingText.split(/\s+/).filter(w => w.length > 0);
+      if (headingWords.length === 0) return;
+
+      const firstWord = headingWords[0];
+      for (let i = 0; i < allTextWords.length; i++) {
+        if (allTextWords[i] === firstWord) {
+          let match = true;
+          for (let j = 1; j < headingWords.length && i + j < allTextWords.length; j++) {
+            if (allTextWords[i + j] !== headingWords[j]) {
+              match = false;
+              break;
+            }
+          }
+          if (match) {
+            headings.push({
+              wordIndex: i,
+              title: headingText,
+              level: tagName === 'h2' ? 2 : 3,
+            });
+            break;
+          }
+        }
+      }
+    });
+
     // Clean up text
     const cleanText = articleText
       .replace(/[\s\u00A0\u2000-\u200B\u202F\u205F\u3000]+/g, ' ')
@@ -142,12 +179,15 @@ export async function POST(request: Request) {
       );
     }
 
+    const wordCount = cleanText.split(' ').filter(w => w.length > 0).length;
+
     return NextResponse.json({
       url,
       title: title || hostname,
       content: cleanText,
+      headings: headings.filter(h => h.wordIndex < wordCount),
       source: hostname.replace(/^www\./, ''),
-      wordCount: cleanText.split(' ').filter(w => w.length > 0).length,
+      wordCount,
     });
   } catch (error) {
     console.error('Save article error:', error);

@@ -8,72 +8,217 @@ const SERVICES = {
   'wsj.com': { id: 'wsj', name: 'Wall Street Journal' },
 };
 
+// Important cookie name patterns for filtering large cookie strings
+const IMPORTANT_COOKIE_PATTERNS = [
+  'session', 'token', 'auth', 'sid', 'jwt', 'login', 'user', 'account',
+];
+
+let appUrl = '';
+let currentTab = null;
+
 // DOM elements
-const domainEl = document.getElementById('domain');
-const serviceBadgeEl = document.getElementById('serviceBadge');
-const statusEl = document.getElementById('status');
-const cookieCountEl = document.getElementById('cookieCount');
-const captureBtn = document.getElementById('captureBtn');
-const openAppBtn = document.getElementById('openAppBtn');
-const appUrlInput = document.getElementById('appUrl');
+const setupView = document.getElementById('setupView');
+const appView = document.getElementById('appView');
+const articleView = document.getElementById('articleView');
 
-let currentDomain = '';
-let currentService = null;
-let capturedCookies = '';
-
-// Initialize
 async function init() {
-  // Load saved app URL
-  const stored = await chrome.storage.local.get(['appUrl']);
-  if (stored.appUrl) {
-    appUrlInput.value = stored.appUrl;
+  // Load saved app URL with try/catch for storage permission
+  try {
+    const stored = await chrome.storage.local.get(['appUrl']);
+    if (stored.appUrl) {
+      appUrl = stored.appUrl;
+    }
+  } catch (err) {
+    console.error('Failed to read storage:', err);
   }
 
-  // Save app URL on change
-  appUrlInput.addEventListener('change', async () => {
-    await chrome.storage.local.set({ appUrl: appUrlInput.value });
-  });
-
   // Get current tab
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.url) {
-    showStatus('Cannot access this tab', 'error');
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    currentTab = tab;
+  } catch (err) {
+    console.error('Failed to get tab:', err);
+  }
+
+  if (!currentTab?.url) {
+    showSetupView();
     return;
   }
 
-  try {
-    const url = new URL(tab.url);
-    currentDomain = url.hostname;
-    domainEl.textContent = currentDomain;
+  // Detect state
+  const tabUrl = currentTab.url;
+  const tabTitle = currentTab.title || '';
 
-    // Check if this is a supported service
+  if (appUrl && isSameOrigin(tabUrl, appUrl)) {
+    // On the Speed Reader app
+    showAppView();
+  } else if (appUrl) {
+    // App URL saved, on another page
+    showArticleView();
+  } else if (tabTitle.toLowerCase().includes('speed reader')) {
+    // First-time detection: page title matches
+    showAppView();
+  } else {
+    showSetupView();
+  }
+}
+
+function isSameOrigin(url1, url2) {
+  try {
+    return new URL(url1).origin === new URL(url2).origin;
+  } catch {
+    return false;
+  }
+}
+
+// --- State A: Setup View ---
+function showSetupView() {
+  setupView.classList.remove('hidden');
+
+  const setupUrlInput = document.getElementById('setupUrl');
+  const saveSetupBtn = document.getElementById('saveSetupBtn');
+
+  if (appUrl) {
+    setupUrlInput.value = appUrl;
+  }
+
+  saveSetupBtn.addEventListener('click', async () => {
+    const url = setupUrlInput.value.trim();
+    if (!url) return;
+    try {
+      new URL(url); // validate
+    } catch {
+      return;
+    }
+    appUrl = url;
+    await chrome.storage.local.set({ appUrl });
+    // Switch to article view now that URL is saved
+    setupView.classList.add('hidden');
+    showArticleView();
+  });
+}
+
+// --- State B: App View ---
+function showAppView() {
+  appView.classList.remove('hidden');
+
+  const setDefaultBtn = document.getElementById('setDefaultBtn');
+  const appViewUrlEl = document.getElementById('appViewUrl');
+
+  if (appUrl) {
+    appViewUrlEl.textContent = `Saved: ${appUrl}`;
+    setDefaultBtn.textContent = 'Update Default URL';
+  }
+
+  setDefaultBtn.addEventListener('click', async () => {
+    if (!currentTab?.url) return;
+    try {
+      const origin = new URL(currentTab.url).origin;
+      appUrl = origin;
+      await chrome.storage.local.set({ appUrl: origin });
+      appViewUrlEl.textContent = `Saved: ${origin}`;
+      setDefaultBtn.textContent = 'Saved!';
+      setDefaultBtn.disabled = true;
+    } catch (err) {
+      console.error('Failed to save URL:', err);
+    }
+  });
+}
+
+// --- State C: Article View ---
+function showArticleView() {
+  articleView.classList.remove('hidden');
+
+  const articleDomainEl = document.getElementById('articleDomain');
+  const serviceBadgeEl = document.getElementById('serviceBadge');
+  const statusEl = document.getElementById('status');
+  const readBtn = document.getElementById('readBtn');
+  const settingsToggle = document.getElementById('settingsToggle');
+  const settingsPanel = document.getElementById('settingsPanel');
+  const appUrlInput = document.getElementById('appUrl');
+  const saveUrlBtn = document.getElementById('saveUrlBtn');
+
+  // Show current domain
+  let currentDomain = '';
+  let currentService = null;
+  try {
+    const url = new URL(currentTab.url);
+    currentDomain = url.hostname;
+    articleDomainEl.textContent = currentDomain;
     currentService = findService(currentDomain);
     if (currentService) {
       serviceBadgeEl.textContent = currentService.name;
-      serviceBadgeEl.classList.remove('hidden', 'not-supported');
-      captureBtn.disabled = false;
-    } else {
-      serviceBadgeEl.textContent = 'Not a premium service';
       serviceBadgeEl.classList.remove('hidden');
-      serviceBadgeEl.classList.add('not-supported');
-      showStatus('This site is not a supported premium service. You can still capture cookies if needed.', 'info');
-      captureBtn.disabled = false;
     }
-
-    // Get cookie count
-    const cookies = await chrome.cookies.getAll({ domain: getBaseDomain(currentDomain) });
-    cookieCountEl.textContent = `${cookies.length} cookies available`;
-
-  } catch (err) {
-    showStatus(`Error: ${err.message}`, 'error');
+  } catch {
+    articleDomainEl.textContent = 'Unknown page';
   }
 
-  // Button handlers
-  captureBtn.addEventListener('click', captureCookies);
-  openAppBtn.addEventListener('click', openApp);
+  // Populate settings input
+  if (appUrl) {
+    appUrlInput.value = appUrl;
+  }
+
+  // Settings toggle
+  settingsToggle.addEventListener('click', () => {
+    settingsPanel.classList.toggle('hidden');
+  });
+
+  // Save URL from settings
+  saveUrlBtn.addEventListener('click', async () => {
+    const url = appUrlInput.value.trim();
+    if (!url) return;
+    try {
+      new URL(url);
+    } catch {
+      return;
+    }
+    appUrl = url;
+    await chrome.storage.local.set({ appUrl });
+    saveUrlBtn.textContent = 'Saved!';
+    setTimeout(() => { saveUrlBtn.textContent = 'Save URL'; }, 1500);
+  });
+
+  // "Read in Speed Reader" click handler
+  readBtn.addEventListener('click', async () => {
+    if (!appUrl) {
+      showStatus(statusEl, 'Enter your Speed Reader URL in settings below', 'error');
+      settingsPanel.classList.remove('hidden');
+      return;
+    }
+
+    readBtn.disabled = true;
+    readBtn.textContent = 'Opening...';
+
+    try {
+      if (currentService) {
+        // Premium service: capture cookies and send with article
+        showStatus(statusEl, 'Capturing cookies...', 'loading');
+        const cookieStr = await captureCookies(currentDomain);
+
+        const targetUrl = new URL('/auth/receive', appUrl);
+        targetUrl.searchParams.set('service', currentService.id);
+        targetUrl.searchParams.set('cookie', cookieStr);
+        targetUrl.searchParams.set('article', currentTab.url);
+
+        chrome.tabs.create({ url: targetUrl.toString() });
+      } else {
+        // Non-premium: just send article URL directly
+        const targetUrl = new URL('/', appUrl);
+        targetUrl.searchParams.set('article', currentTab.url);
+
+        chrome.tabs.create({ url: targetUrl.toString() });
+      }
+    } catch (err) {
+      showStatus(statusEl, `Error: ${err.message}`, 'error');
+      readBtn.disabled = false;
+      readBtn.textContent = 'Read in Speed Reader';
+    }
+  });
 }
 
-// Find service by domain
+// --- Helpers ---
+
 function findService(domain) {
   const normalized = domain.toLowerCase().replace(/^www\./, '');
   for (const [serviceDomain, service] of Object.entries(SERVICES)) {
@@ -84,96 +229,58 @@ function findService(domain) {
   return null;
 }
 
-// Get base domain for cookie lookup
 function getBaseDomain(domain) {
-  // Remove www. prefix
   let base = domain.replace(/^www\./, '');
-
-  // For subdomains like example.substack.com, we want substack.com
   for (const serviceDomain of Object.keys(SERVICES)) {
     if (base.endsWith('.' + serviceDomain)) {
       return serviceDomain;
     }
   }
-
   return base;
 }
 
-// Capture cookies
-async function captureCookies() {
-  try {
-    captureBtn.disabled = true;
-    captureBtn.textContent = 'Capturing...';
+async function captureCookies(domain) {
+  const baseDomain = getBaseDomain(domain);
 
-    // Get all cookies for this domain and parent domains
-    const baseDomain = getBaseDomain(currentDomain);
-    const cookies = await chrome.cookies.getAll({ domain: baseDomain });
+  // Get cookies for base domain and exact domain
+  const [baseCookies, exactCookies] = await Promise.all([
+    chrome.cookies.getAll({ domain: baseDomain }),
+    chrome.cookies.getAll({ domain: domain }),
+  ]);
 
-    // Also get cookies for the exact domain
-    const exactCookies = await chrome.cookies.getAll({ domain: currentDomain });
-
-    // Merge and dedupe
-    const allCookies = [...cookies];
-    for (const cookie of exactCookies) {
-      if (!allCookies.find(c => c.name === cookie.name && c.domain === cookie.domain)) {
-        allCookies.push(cookie);
-      }
+  // Merge and dedupe
+  const allCookies = [...baseCookies];
+  for (const cookie of exactCookies) {
+    if (!allCookies.find(c => c.name === cookie.name && c.domain === cookie.domain)) {
+      allCookies.push(cookie);
     }
-
-    if (allCookies.length === 0) {
-      showStatus('No cookies found. Make sure you are logged in.', 'error');
-      captureBtn.disabled = false;
-      captureBtn.textContent = 'Capture Cookies';
-      return;
-    }
-
-    // Format as cookie header string
-    capturedCookies = allCookies
-      .map(c => `${c.name}=${c.value}`)
-      .join('; ');
-
-    showStatus(`Captured ${allCookies.length} cookies!`, 'success');
-    captureBtn.textContent = 'Cookies Captured';
-    openAppBtn.classList.remove('hidden');
-
-  } catch (err) {
-    showStatus(`Error: ${err.message}`, 'error');
-    captureBtn.disabled = false;
-    captureBtn.textContent = 'Capture Cookies';
   }
+
+  // Format as cookie header string
+  let cookieStr = allCookies
+    .map(c => `${c.name}=${c.value}`)
+    .join('; ');
+
+  // If cookie string is too long for URL, filter to important cookies only
+  if (cookieStr.length > 4000) {
+    const importantCookies = allCookies.filter(c => {
+      const nameLower = c.name.toLowerCase();
+      return IMPORTANT_COOKIE_PATTERNS.some(p => nameLower.includes(p)) || c.httpOnly;
+    });
+    if (importantCookies.length > 0) {
+      cookieStr = importantCookies
+        .map(c => `${c.name}=${c.value}`)
+        .join('; ');
+    }
+  }
+
+  return cookieStr;
 }
 
-// Open app with cookies
-function openApp() {
-  const appUrl = appUrlInput.value.trim();
-  if (!appUrl) {
-    showStatus('Please enter your Speed Reader URL', 'error');
-    appUrlInput.focus();
-    return;
-  }
-
-  // Determine service ID
-  const serviceId = currentService?.id || 'custom';
-
-  // Build URL with cookie data
-  const targetUrl = new URL('/auth/receive', appUrl);
-  targetUrl.searchParams.set('service', serviceId);
-  targetUrl.searchParams.set('cookie', capturedCookies);
-
-  // If it's a custom domain, include the domain name
-  if (!currentService) {
-    targetUrl.searchParams.set('domain', currentDomain);
-  }
-
-  // Open in new tab
-  chrome.tabs.create({ url: targetUrl.toString() });
-}
-
-// Show status message
-function showStatus(message, type) {
-  statusEl.textContent = message;
-  statusEl.className = `status ${type}`;
-  statusEl.classList.remove('hidden');
+function showStatus(el, message, type) {
+  el.textContent = message;
+  el.className = `status ${type}`;
+  el.classList.remove('hidden');
 }
 
 // Start

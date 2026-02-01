@@ -25,6 +25,46 @@
       font-size: 14px;
       font-weight: 600;
     }
+    .hidden {
+      display: none !important;
+    }
+
+    /* Setup View */
+    .setup-message {
+      font-size: 13px;
+      color: #a1a1aa;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+    .setup-message strong {
+      color: #fff;
+    }
+
+    /* App View */
+    .detected {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px;
+      background: #14532d;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    .detected svg {
+      flex-shrink: 0;
+    }
+    .detected span {
+      font-size: 13px;
+      color: #86efac;
+    }
+    .saved-url {
+      font-size: 11px;
+      color: #666;
+      margin-top: 8px;
+      word-break: break-all;
+    }
+
+    /* Article View */
     .domain {
       padding: 8px 12px;
       background: #1a1a1a;
@@ -52,10 +92,8 @@
       font-size: 11px;
       margin-top: 6px;
     }
-    .not-supported {
-      background: #3f3f46;
-      color: #a1a1aa;
-    }
+
+    /* Status */
     .status {
       padding: 10px 12px;
       border-radius: 8px;
@@ -74,11 +112,12 @@
       background: #1e3a5f;
       color: #93c5fd;
     }
-    .cookie-count {
-      font-size: 11px;
-      color: #666;
-      margin-bottom: 12px;
+    .status.loading {
+      background: #1a1a1a;
+      color: #a1a1aa;
     }
+
+    /* Buttons */
     button {
       width: 100%;
       padding: 12px;
@@ -108,9 +147,33 @@
     .btn-secondary:hover:not(:disabled) {
       background: #3f3f46;
     }
+    .btn-green {
+      background: #22c55e;
+      color: #000;
+    }
+    .btn-green:hover:not(:disabled) {
+      background: #16a34a;
+    }
+
+    /* Settings */
+    .settings-toggle {
+      display: block;
+      width: auto;
+      padding: 4px 0;
+      margin-top: 12px;
+      background: none;
+      border: none;
+      color: #666;
+      font-size: 11px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .settings-toggle:hover {
+      color: #a1a1aa;
+    }
     .settings {
-      margin-top: 16px;
-      padding-top: 12px;
+      margin-top: 8px;
+      padding-top: 8px;
       border-top: 1px solid #27272a;
     }
     .settings label {
@@ -132,40 +195,63 @@
       outline: none;
       border-color: #3b82f6;
     }
-    .hidden {
-      display: none;
+    .settings .btn-secondary {
+      margin-top: 6px;
     }
   </style>
 </head>
 <body>
   <div class="header">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+      <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
     </svg>
     <h1>Speed Reader</h1>
   </div>
 
-  <div class="domain">
-    <div class="domain-label">Current Site</div>
-    <div class="domain-value" id="domain">Loading...</div>
-    <span class="service-badge hidden" id="serviceBadge"></span>
+  <!-- State A: No Speed Reader URL saved, not on SR page -->
+  <div id="setupView" class="hidden">
+    <p class="setup-message">
+      <strong>First-time setup:</strong> Visit your Speed Reader app and click this extension to connect it. Or enter the URL manually below.
+    </p>
+    <div class="settings">
+      <label for="setupUrl">Speed Reader URL</label>
+      <input type="url" id="setupUrl" placeholder="https://your-app.vercel.app">
+      <button class="btn-primary" id="saveSetupBtn" style="margin-top: 8px">Save</button>
+    </div>
   </div>
 
-  <div class="status hidden" id="status"></div>
+  <!-- State B: Current tab IS the Speed Reader app -->
+  <div id="appView" class="hidden">
+    <div class="detected">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#86efac" stroke-width="2.5">
+        <path d="M20 6L9 17l-5-5"/>
+      </svg>
+      <span>Speed Reader detected</span>
+    </div>
+    <button class="btn-green" id="setDefaultBtn">Set as Default</button>
+    <p class="saved-url" id="appViewUrl"></p>
+  </div>
 
-  <div class="cookie-count" id="cookieCount"></div>
+  <!-- State C: On an article page, SR URL is configured -->
+  <div id="articleView" class="hidden">
+    <div class="domain">
+      <div class="domain-label">Current Article</div>
+      <div class="domain-value" id="articleDomain">Loading...</div>
+      <span class="service-badge hidden" id="serviceBadge"></span>
+    </div>
 
-  <button class="btn-primary" id="captureBtn" disabled>
-    Capture Cookies
-  </button>
+    <div class="status hidden" id="status"></div>
 
-  <button class="btn-secondary hidden" id="openAppBtn">
-    Open Speed Reader
-  </button>
+    <button class="btn-primary" id="readBtn">
+      Read in Speed Reader
+    </button>
 
-  <div class="settings">
-    <label for="appUrl">Speed Reader URL</label>
-    <input type="url" id="appUrl" placeholder="https://your-app.vercel.app">
+    <button class="settings-toggle" id="settingsToggle">Change saved URL</button>
+    <div class="settings hidden" id="settingsPanel">
+      <label for="appUrl">Speed Reader URL</label>
+      <input type="url" id="appUrl" placeholder="https://your-app.vercel.app">
+      <button class="btn-secondary" id="saveUrlBtn">Save URL</button>
+    </div>
   </div>
 
   <script src="popup.js"></script>

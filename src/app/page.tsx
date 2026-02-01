@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useReaderStore } from '@/store/readerStore';
+import { useAuthStore } from '@/store/authStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { useRsvpEngine } from '@/hooks/useRsvpEngine';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -13,6 +14,7 @@ import { ProgressIndicator } from '@/components/reader/ProgressIndicator';
 import { FocalColorPicker } from '@/components/reader/FocalColorPicker';
 import { LaunchButton } from '@/components/reader/LaunchButton';
 import { ThemeToggle } from '@/components/reader/ThemeToggle';
+import { ChunkSizeControl } from '@/components/reader/ChunkSizeControl';
 import { useLaunchMode } from '@/hooks/useLaunchMode';
 import { ContentTabs } from '@/components/sidebar/ContentTabs';
 import { ReadingHistory } from '@/components/sidebar/ReadingHistory';
@@ -22,9 +24,86 @@ import { Bookmarklet } from '@/components/sidebar/Bookmarklet';
 import { DeviceSync } from '@/components/sidebar/DeviceSync';
 import { FeedBrowser } from '@/components/sidebar/FeedBrowser';
 
+function ArticleAutoLoader() {
+  const { setContent } = useReaderStore();
+  const { getCredentialForDomain } = useAuthStore();
+  const hasAutoLoaded = useRef(false);
+  const [toast, setToast] = useState<{ message: string; type: 'loading' | 'error' } | null>(null);
+
+  useEffect(() => {
+    // Read directly from window.location to avoid useSearchParams/Suspense issues
+    const params = new URLSearchParams(window.location.search);
+    const articleUrl = params.get('article');
+    if (!articleUrl || hasAutoLoaded.current) return;
+    hasAutoLoaded.current = true;
+
+    // Clean URL bar silently (after reading params)
+    window.history.replaceState({}, '', '/');
+
+    setToast({ message: 'Loading article...', type: 'loading' });
+
+    async function fetchArticle() {
+      try {
+        // Try to get stored cookie for this domain
+        let cookie: string | null = null;
+        try {
+          const domain = new URL(articleUrl).hostname;
+          cookie = getCredentialForDomain(domain);
+        } catch {
+          // ignore domain parse errors
+        }
+
+        const res = await fetch('/api/fetch/article', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: articleUrl, cookie }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `Failed to fetch (${res.status})`);
+        }
+
+        const data = await res.json();
+        const text = data.words.join(' ');
+        setContent(text, {
+          title: data.title,
+          source: 'url',
+          sourceUrl: articleUrl,
+          headings: data.headings,
+        });
+        setToast(null);
+      } catch (err) {
+        setToast({ message: err instanceof Error ? err.message : 'Failed to load article', type: 'error' });
+        setTimeout(() => setToast(null), 5000);
+      }
+    }
+
+    fetchArticle();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!toast) return null;
+
+  return (
+    <div
+      className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm max-w-xs ${
+        toast.type === 'loading'
+          ? 'bg-blue-600 text-white'
+          : 'bg-red-600 text-white'
+      }`}
+    >
+      {toast.type === 'loading' && (
+        <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 align-middle" />
+      )}
+      {toast.message}
+    </div>
+  );
+}
+
 export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { words, currentIndex, focalColor, reset, isPlaying, launch, contentMeta } = useReaderStore();
+  const { words, currentIndex, focalColor, reset, isPlaying, launch, contentMeta, chunkSize } = useReaderStore();
   const { saveProgress } = useHistoryStore();
   const readerRef = useRef<HTMLDivElement>(null);
 
@@ -34,7 +113,7 @@ export default function Home() {
   useTouchGestures(readerRef);
   useLaunchMode();
 
-  const currentWord = words[currentIndex] || '';
+  const currentChunk = words.slice(currentIndex, currentIndex + chunkSize).filter(Boolean);
   const hasContent = words.length > 0;
   const showCountdown = launch.isLaunching && launch.countdown > 0;
 
@@ -79,6 +158,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen flex flex-col lg:flex-row">
+      <ArticleAutoLoader />
 
       {/* Sidebar */}
       <aside
@@ -142,6 +222,7 @@ export default function Home() {
             {/* Settings section - now inside scroll area */}
             <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800 space-y-4">
               <SpeedControl />
+              <ChunkSizeControl />
               <FocalColorPicker />
               <ThemeToggle />
             </div>
@@ -164,6 +245,7 @@ export default function Home() {
                 <span>Space</span><span>Play/Pause</span>
                 <span>↑↓</span><span>Speed</span>
                 <span>←→</span><span>Skip</span>
+                <span>Shift+←→</span><span>Sentence</span>
                 <span>R</span><span>Restart</span>
               </div>
             </div>
@@ -221,7 +303,7 @@ export default function Home() {
                        select-none touch-manipulation"
           >
             {/* Word Display */}
-            <WordDisplay word={currentWord} focalColor={focalColor} />
+            <WordDisplay chunk={currentChunk} focalColor={focalColor} />
 
             {/* Progress */}
             <div className="mt-6">

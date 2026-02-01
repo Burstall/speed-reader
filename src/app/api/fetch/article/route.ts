@@ -173,6 +173,48 @@ export async function POST(request: Request) {
       }
     }
 
+    // Extract headings by finding h2/h3 elements and mapping to word positions
+    const headings: { wordIndex: number; title: string; level: number }[] = [];
+
+    // Get all text content in order and track h2/h3 positions
+    const articleEl = $('article').length > 0 ? $('article') : $('main').length > 0 ? $('main') : $('body');
+    const allText = articleEl.text();
+    const allTextWords = allText.trim().split(/\s+/).filter(w => w.length > 0);
+
+    // For each heading, find its approximate word position by searching in the full text
+    articleEl.find('h2, h3').each((_, el) => {
+      const headingText = $(el).text().trim();
+      if (!headingText) return;
+
+      const tagName = el.tagName?.toLowerCase();
+      // Find position of heading text within all words
+      const headingWords = headingText.split(/\s+/).filter(w => w.length > 0);
+      if (headingWords.length === 0) return;
+
+      // Search for the first word of the heading in the word list
+      const firstWord = headingWords[0];
+      for (let i = 0; i < allTextWords.length; i++) {
+        if (allTextWords[i] === firstWord) {
+          // Check if subsequent words match
+          let match = true;
+          for (let j = 1; j < headingWords.length && i + j < allTextWords.length; j++) {
+            if (allTextWords[i + j] !== headingWords[j]) {
+              match = false;
+              break;
+            }
+          }
+          if (match) {
+            headings.push({
+              wordIndex: i,
+              title: headingText,
+              level: tagName === 'h2' ? 2 : 3,
+            });
+            break;
+          }
+        }
+      }
+    });
+
     // Clean up text
     const cleanText = articleText
       .replace(/\s+/g, ' ')           // Normalize whitespace
@@ -196,6 +238,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       title: title || parsedUrl.hostname,
       words: limitedWords,
+      headings: headings.filter(h => h.wordIndex < limitedWords.length),
       metadata: {
         source: parsedUrl.hostname,
         wordCount: limitedWords.length,

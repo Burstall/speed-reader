@@ -10,11 +10,13 @@ import { useReaderStore } from '@/store/readerStore';
  * - Arrow Down: Decrease speed (-25 WPM)
  * - Arrow Left: Go back 10 words
  * - Arrow Right: Skip forward 10 words
+ * - Shift+Arrow Left: Go back one sentence
+ * - Shift+Arrow Right: Skip forward one sentence
  * - R: Restart
  * - Escape: Pause
  */
 export function useKeyboardShortcuts() {
-  const { toggle, setWpm, wpm, goBack, goForward, restart, pause, words } = useReaderStore();
+  const { toggle, setWpm, wpm, goBack, goForward, goBackSentence, goForwardSentence, restart, pause, words } = useReaderStore();
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -47,12 +49,24 @@ export function useKeyboardShortcuts() {
 
         case 'ArrowLeft':
           e.preventDefault();
-          if (hasContent) goBack(10);
+          if (hasContent) {
+            if (e.shiftKey) {
+              goBackSentence();
+            } else {
+              goBack(10);
+            }
+          }
           break;
 
         case 'ArrowRight':
           e.preventDefault();
-          if (hasContent) goForward(10);
+          if (hasContent) {
+            if (e.shiftKey) {
+              goForwardSentence();
+            } else {
+              goForward(10);
+            }
+          }
           break;
 
         case 'KeyR':
@@ -70,5 +84,5 @@ export function useKeyboardShortcuts() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggle, setWpm, wpm, goBack, goForward, restart, pause, words]);
+  }, [toggle, setWpm, wpm, goBack, goForward, goBackSentence, goForwardSentence, restart, pause, words]);
 }
