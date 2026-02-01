@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "cheerio": "^1.0.0-rc.12",
+    "jszip": "^3.10.1",
     "next": "^14.2.0",
     "pdf-parse": "^1.1.1",
     "qrcode.react": "^4.2.0",
