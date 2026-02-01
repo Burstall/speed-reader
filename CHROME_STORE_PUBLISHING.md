@@ -77,9 +77,15 @@ The dashboard will ask you to justify each permission:
 | **activeTab** | Reads the current tab URL to send the article to Speed Reader |
 | **tabs** | Accesses the current tab's URL and title to detect if the user is on their Speed Reader app |
 | **storage** | Saves the user's Speed Reader app URL as a persistent setting |
-| **host_permissions** | Reads cookies from supported premium sites (FT, Substack, Spectator, Economist, NYT, WSJ) to enable paywalled article access |
+| **scripting** | Uses chrome.scripting.executeScript to extract article text from the current page's DOM so it can be sent to Speed Reader for RSVP display. The script runs only when the user clicks the extension button, reads the page's article content (title and body text), and returns it to the extension popup. No page content is modified. |
+| **host_permissions** | Reads cookies from supported premium sites (FT, Substack, Spectator, Economist, NYT, WSJ) and extracts article text from any page to enable paywalled article access and one-click reading |
 
-You'll also need to fill in a **Privacy policy** URL or state that no user data is collected. Since this stores data locally only (no server telemetry), you can select "I do not collect any user data."
+For **"Does your extension use remote code?"**, select **No**. All JavaScript is bundled in the extension package. The `chrome.scripting.executeScript` call uses an inline function, not a remotely-hosted script.
+
+For the **Privacy Policy URL**, enter:
+```
+https://github.com/Burstall/speed-reader/blob/main/PRIVACY_POLICY.md
+```
 
 ### Step 5: Distribution
 
