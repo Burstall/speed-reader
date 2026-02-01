@@ -36,8 +36,8 @@ export const PREMIUM_SERVICES: PremiumService[] = [
   {
     id: 'spectator',
     name: 'The Spectator',
-    domain: 'spectator.co.uk',
-    loginUrl: 'https://www.spectator.co.uk/login',
+    domain: 'spectator.com',
+    loginUrl: 'https://www.spectator.com/login',
     cookieName: 'spectator_session',
     experimental: true,
   },

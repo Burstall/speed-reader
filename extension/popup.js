@@ -2,7 +2,7 @@
 const SERVICES = {
   'substack.com': { id: 'substack', name: 'Substack' },
   'ft.com': { id: 'ft', name: 'Financial Times' },
-  'spectator.co.uk': { id: 'spectator', name: 'The Spectator' },
+  'spectator.com': { id: 'spectator', name: 'The Spectator' },
   'economist.com': { id: 'economist', name: 'The Economist' },
   'nytimes.com': { id: 'nytimes', name: 'NY Times' },
   'wsj.com': { id: 'wsj', name: 'Wall Street Journal' },
