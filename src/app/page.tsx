@@ -201,7 +201,7 @@ export default function Home() {
         <div className="flex flex-col h-full p-4">
           {/* Header - fixed at top */}
           <div className="flex items-center justify-between mb-6 flex-shrink-0">
-            <h1 className="text-lg font-bold">Speed Reader</h1>
+            <h1 className="text-lg font-bold">Speed Reader <span className="text-xs font-normal text-gray-400 dark:text-gray-500">v{process.env.NEXT_PUBLIC_APP_VERSION}</span></h1>
             <button
               onClick={() => setSidebarOpen(false)}
               className="lg:hidden p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
