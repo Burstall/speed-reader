@@ -5,7 +5,7 @@ import { useReaderStore } from '@/store/readerStore';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-export function PdfUpload() {
+export function FileUpload() {
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -17,13 +17,13 @@ export function PdfUpload() {
     setError('');
     setFileName('');
 
-    // Validate file type
-    if (file.type !== 'application/pdf') {
-      setError('Please upload a PDF file');
+    const ext = file.name.split('.').pop()?.toLowerCase();
+
+    if (ext !== 'pdf' && ext !== 'epub') {
+      setError('Unsupported file type. Please upload a PDF or EPUB file.');
       return;
     }
 
-    // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       setError('File too large (max 10MB)');
       return;
@@ -36,31 +36,49 @@ export function PdfUpload() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/parse/pdf', {
+      const endpoint = ext === 'pdf' ? '/api/parse/pdf' : '/api/parse/epub';
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to parse PDF');
+        throw new Error(data.error || `Failed to parse ${ext.toUpperCase()}`);
       }
 
       const data = await response.json();
 
       if (!data.words || data.words.length === 0) {
-        throw new Error('No text found in PDF. It may be scanned/image-based.');
+        throw new Error(
+          ext === 'pdf'
+            ? 'No text found in PDF. It may be scanned/image-based.'
+            : 'No text found in EPUB.'
+        );
       }
 
-      // Join words and set content with metadata
-      const title = file.name.replace(/\.pdf$/i, '');
-      setContent(data.words.join(' '), {
-        title,
-        source: 'pdf',
-      });
-      setFileName(`${file.name} (${data.words.length.toLocaleString()} words)`);
+      if (ext === 'pdf') {
+        const title = file.name.replace(/\.pdf$/i, '');
+        setContent(data.words.join(' '), {
+          title,
+          source: 'pdf',
+        });
+      } else {
+        const title = data.metadata?.title || file.name.replace(/\.epub$/i, '');
+        setContent(data.words.join(' '), {
+          title,
+          source: 'epub',
+          headings: data.headings,
+        });
+      }
+
+      const displayTitle = ext === 'epub'
+        ? (data.metadata?.title || file.name.replace(/\.epub$/i, ''))
+        : file.name;
+      setFileName(`${displayTitle} (${data.words.length.toLocaleString()} words)`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to parse PDF');
+      setError(err instanceof Error ? err.message : `Failed to parse ${ext.toUpperCase()}`);
       setFileName('');
     } finally {
       setIsLoading(false);
@@ -95,7 +113,7 @@ export function PdfUpload() {
 
   return (
     <div className="flex flex-col gap-3">
-      <label className="text-sm text-gray-400">Upload PDF</label>
+      <label className="text-sm text-gray-400">Upload File</label>
 
       {/* Drop zone */}
       <div
@@ -117,7 +135,7 @@ export function PdfUpload() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="application/pdf"
+          accept=".pdf,.epub"
           onChange={handleInputChange}
           className="hidden"
         />
@@ -133,8 +151,8 @@ export function PdfUpload() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                 d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
-            <span className="text-sm">Drop PDF or click to upload</span>
-            <span className="text-xs text-gray-600">Max 10MB</span>
+            <span className="text-sm">Drop file or click to upload</span>
+            <span className="text-xs text-gray-600">Supports PDF and EPUB</span>
           </div>
         )}
       </div>
@@ -149,7 +167,7 @@ export function PdfUpload() {
       )}
 
       <p className="text-xs text-gray-600">
-        Note: Scanned PDFs (images) won&apos;t work - text must be selectable
+        Max 10MB. Scanned PDFs (images) won&apos;t work.
       </p>
     </div>
   );
