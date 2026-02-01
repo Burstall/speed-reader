@@ -37,12 +37,49 @@ function getORPIndex(length: number): number {
 }
 
 /**
+ * Strip markdown formatting from text, preserving the readable content.
+ * Handles headings, emphasis, links, images, code, blockquotes, lists, and rules.
+ */
+export function stripMarkdown(text: string): string {
+  return text
+    // Remove code blocks (``` ... ```) — drop the content since code isn't readable in RSVP
+    .replace(/```[\s\S]*?```/g, '')
+    // Remove inline code backticks but keep content
+    .replace(/`([^`]+)`/g, '$1')
+    // Remove images ![alt](url) — drop entirely
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
+    // Convert links [text](url) → keep text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove reference-style link definitions [id]: url
+    .replace(/^\[[^\]]+\]:\s+.+$/gm, '')
+    // Remove heading markers
+    .replace(/^#{1,6}\s+/gm, '')
+    // Remove bold/italic (order matters: bold-italic first)
+    .replace(/\*{3}([^*]+)\*{3}/g, '$1')
+    .replace(/_{3}([^_]+)_{3}/g, '$1')
+    .replace(/\*{2}([^*]+)\*{2}/g, '$1')
+    .replace(/_{2}([^_]+)_{2}/g, '$1')
+    .replace(/(?<!\w)\*([^*]+)\*(?!\w)/g, '$1')
+    .replace(/(?<!\w)_([^_]+)_(?!\w)/g, '$1')
+    // Remove strikethrough
+    .replace(/~~([^~]+)~~/g, '$1')
+    // Remove blockquote markers
+    .replace(/^>\s?/gm, '')
+    // Remove unordered list markers (-, *, +)
+    .replace(/^[\t ]*[-*+]\s+/gm, '')
+    // Remove ordered list markers (1., 2., etc.)
+    .replace(/^[\t ]*\d+\.\s+/gm, '')
+    // Remove horizontal rules
+    .replace(/^[-*_]{3,}\s*$/gm, '');
+}
+
+/**
  * Tokenize text into words for RSVP display.
  * Preserves punctuation attached to words.
  * Handles various whitespace characters and edge cases.
  */
 export function tokenizeText(text: string): string[] {
-  return text
+  return stripMarkdown(text)
     // Normalize all whitespace types (including non-breaking spaces, tabs, newlines)
     .replace(/[\s\u00A0\u2000-\u200B\u202F\u205F\u3000]+/g, ' ')
     // Remove zero-width characters
