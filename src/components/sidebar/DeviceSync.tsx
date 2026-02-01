@@ -26,10 +26,15 @@ class QRErrorBoundary extends Component<
   }
 }
 
+// QR Level L max is ~2953 bytes; use conservative threshold for URL overhead
+const QR_MAX_LENGTH = 2500;
+
 export function DeviceSync() {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [syncUrl, setSyncUrl] = useState('');
+  const [fullUrl, setFullUrl] = useState('');
+  const [qrUrl, setQrUrl] = useState('');
+  const [qrSettingsOnly, setQrSettingsOnly] = useState(false);
 
   const { wpm, focalColor, theme } = useReaderStore();
   const { credentials, customServices } = useAuthStore();
@@ -38,19 +43,34 @@ export function DeviceSync() {
 
   useEffect(() => {
     if (expanded && typeof window !== 'undefined') {
-      const syncData = gatherSyncData(
-        { wpm, focalColor, theme },
-        { credentials, customServices }
-      );
-      generateSyncUrl(window.location.origin, syncData).then((url) => {
-        setSyncUrl(url);
+      const origin = window.location.origin;
+      const settings = { wpm, focalColor, theme };
+      const auth = { credentials, customServices };
+
+      // Always generate full URL for Copy Link
+      const fullData = gatherSyncData(settings, auth);
+      generateSyncUrl(origin, fullData).then(async (url) => {
+        setFullUrl(url);
+
+        // If full URL fits in QR, use it
+        if (url.length <= QR_MAX_LENGTH) {
+          setQrUrl(url);
+          setQrSettingsOnly(false);
+          return;
+        }
+
+        // Otherwise, generate settings-only URL for QR
+        const settingsOnlyData = gatherSyncData(settings, { credentials: {}, customServices: [] });
+        const settingsUrl = await generateSyncUrl(origin, settingsOnlyData);
+        setQrUrl(settingsUrl);
+        setQrSettingsOnly(true);
       });
     }
   }, [expanded, wpm, focalColor, theme, credentials, customServices]);
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(syncUrl);
+      await navigator.clipboard.writeText(fullUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -88,18 +108,18 @@ export function DeviceSync() {
         <div className="space-y-4">
           {/* QR Code */}
           <div className="flex flex-col items-center gap-3 p-4 bg-white rounded-lg">
-            {syncUrl ? (
+            {qrUrl ? (
               <QRErrorBoundary
                 fallback={
                   <div className="w-[180px] h-[180px] flex items-center justify-center">
                     <p className="text-xs text-red-600 text-center px-2">
-                      Payload too large for QR code. Use &quot;Copy Link&quot; below instead.
+                      QR code generation failed. Use &quot;Copy Link&quot; below instead.
                     </p>
                   </div>
                 }
               >
                 <QRCodeSVG
-                  value={syncUrl}
+                  value={qrUrl}
                   size={180}
                   level="L"
                   includeMargin={false}
@@ -109,13 +129,15 @@ export function DeviceSync() {
               <div className="w-[180px] h-[180px] bg-gray-100 animate-pulse rounded" />
             )}
             <p className="text-xs text-gray-600 text-center">
-              Scan with your phone camera or copy link below
+              Scan with your phone camera
             </p>
           </div>
 
           {/* What's included */}
           <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs">
-            <p className="font-medium text-gray-700 dark:text-gray-300 mb-2">Includes:</p>
+            <p className="font-medium text-gray-700 dark:text-gray-300 mb-2">
+              QR includes:
+            </p>
             <ul className="space-y-1 text-gray-600 dark:text-gray-400">
               <li className="flex items-center gap-2">
                 <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
@@ -135,7 +157,7 @@ export function DeviceSync() {
                 </svg>
                 Theme: <span className="capitalize">{theme}</span>
               </li>
-              {credentialCount > 0 && (
+              {credentialCount > 0 && !qrSettingsOnly && (
                 <li className="flex items-center gap-2">
                   <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -144,6 +166,11 @@ export function DeviceSync() {
                 </li>
               )}
             </ul>
+            {qrSettingsOnly && credentialCount > 0 && (
+              <p className="mt-2 text-yellow-600 dark:text-yellow-500">
+                Credentials too large for QR. Use &quot;Copy Full Link&quot; to transfer everything.
+              </p>
+            )}
           </div>
 
           {/* Copy button */}
@@ -166,13 +193,15 @@ export function DeviceSync() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
-                Copy Link
+                {qrSettingsOnly && credentialCount > 0 ? 'Copy Full Link (with credentials)' : 'Copy Link'}
               </>
             )}
           </button>
 
           <p className="text-xs text-gray-500 dark:text-gray-600 text-center">
-            QR codes contain your session cookies. Don&apos;t share publicly.
+            {qrSettingsOnly && credentialCount > 0
+              ? 'Open copied link on mobile to sync settings + credentials'
+              : 'QR codes contain your session cookies. Don\u0027t share publicly.'}
           </p>
         </div>
       )}
