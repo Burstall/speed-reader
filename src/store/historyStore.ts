@@ -5,7 +5,7 @@ import { generateContentHash } from '@/lib/orp';
 export interface ReadingItem {
   id: string;              // Content hash
   title: string;           // Article title or filename
-  source: 'text' | 'pdf' | 'url' | 'extension';
+  source: 'text' | 'pdf' | 'epub' | 'url' | 'extension';
   sourceUrl?: string;      // Original URL if from web
   wordCount: number;
   currentIndex: number;
