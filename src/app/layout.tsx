@@ -9,10 +9,16 @@ const jetbrainsMono = JetBrains_Mono({
   variable: '--font-mono',
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://speedrdr.com';
+
 export const metadata: Metadata = {
   title: 'Speed Reader',
   description: 'RSVP speed reading with ORP focal letter technique',
   manifest: '/manifest.json',
+  metadataBase: new URL(siteUrl),
+  alternates: {
+    canonical: '/',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

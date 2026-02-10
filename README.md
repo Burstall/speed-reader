@@ -62,11 +62,22 @@ Create a `.env.local` file with:
 
 ```env
 APP_PASSWORD=your-secure-password
+APP_SECRET=generate-a-64-char-random-hex-string
+NEXT_PUBLIC_SITE_URL=https://speedrdr.com
 ```
+
+**Important**: `NEXT_PUBLIC_SITE_URL` should be set to your production URL for proper SEO canonical tags to prevent duplicate content indexing issues.
 
 ### Deployment
 
 The app is designed for Vercel deployment:
+
+1. **Set Environment Variables in Vercel**:
+   - `APP_PASSWORD`: Your secure password
+   - `APP_SECRET`: Generate with `openssl rand -hex 32`
+   - `NEXT_PUBLIC_SITE_URL`: Your production URL (`https://speedrdr.com`)
+
+2. **Deploy**:
 
 ```bash
 # Install Vercel CLI (optional)
