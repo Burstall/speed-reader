@@ -77,7 +77,7 @@ export default function LoginPage() {
 
         <p className="text-center text-gray-600 mt-6 text-sm">
           Want access?{' '}
-          <a href="mailto:contact@example.com" className="text-gray-400 hover:text-white transition-colors">
+          <a href="mailto:stowerling@duck.com" className="text-gray-400 hover:text-white transition-colors">
             Contact me
           </a>
         </p>
